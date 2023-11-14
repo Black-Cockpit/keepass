@@ -14,7 +14,7 @@ tags:
 - secure variables
 dependencies: {}
 repository: https://github.com/Black-Cockpit/keepass.reader
-documentation: https://github.com/Black-Cockpit/keepass.reader/blob/main/doc
+documentation: https://github.com/Black-Cockpit/keepass.reader/blob/master/doc
 homepage: https://github.com/Black-Cockpit/keepass.reader
 issues: https://github.com/Black-Cockpit/keepass.reader/issues
 build_ignore: []
