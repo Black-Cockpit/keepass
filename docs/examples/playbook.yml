@@ -1,0 +1,13 @@
+- name: Test
+  hosts: all
+  become: no
+  connection: local
+  tasks:
+  - keepass.reader.secret_reader:
+      db_path: "secrets.kdbx"
+      db_password: "password"
+      secret_path: "foo/bar"
+    register: test
+  - debug:
+      msg: "{{ test.secret }}"
+      

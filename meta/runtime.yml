@@ -1,0 +1,6 @@
+requires_ansible: '>=2.10'
+
+# Groups of actions/modules that take a common set of options
+action_groups:
+  all:
+  - secret_reader
