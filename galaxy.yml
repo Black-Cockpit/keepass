@@ -1,17 +1,15 @@
-namespace: keepass
+namespace: hasnimehdi91
 name: reader
 version: 1.0.0
 readme: README.md
 authors:
 - Hasni Mehdi <hasnimehdi@outlook.com>
 description: Keepass collection to securely load data from keepass in an ansible playbook or role
-license:
-- MIT
 license_file: 'LICENSE'
 tags:
 - keepass
 - module
-- secure variables
+- secure_variables
 dependencies: {}
 repository: https://github.com/Black-Cockpit/keepass.reader
 documentation: https://github.com/Black-Cockpit/keepass.reader/blob/master/doc
