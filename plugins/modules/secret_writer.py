@@ -246,7 +246,7 @@ def secret_write(secret_path: str, db: PyKeePass, db_path: str, username: str = 
         elif entry is not None and force:
             # Replace entry it is forced
             db.delete_entry(entry)
-            entry = db.add_entry(destination_group=db.root_group, title=path[0], username=username, password=password,
+            entry = db.add_entry(destination_group=db.root_group, title=path[len(path) - 1], username=username, password=password,
                                  url=url, force_creation=True)
             if custom_properties is not None and type(custom_properties) is dict:
                 for k in custom_properties:
@@ -255,7 +255,7 @@ def secret_write(secret_path: str, db: PyKeePass, db_path: str, username: str = 
             return _convert_secret_to_dic(path, entry, True)
         else:
             # Create new secret
-            entry = db.add_entry(destination_group=db.root_group, title=path[0], username=username, password=password,
+            entry = db.add_entry(destination_group=db.root_group, title=path[len(path) - 1], username=username, password=password,
                                  url=url, force_creation=True)
             if custom_properties and type(custom_properties) is dict:
                 for k in custom_properties:
