@@ -303,7 +303,7 @@ def secret_write(secret_path: str, db: PyKeePass, db_path: str, username: str = 
         # Replace entry it is forced
         db.delete_entry(entry)
 
-        entry = db.add_entry(destination_group=parent_group, title=path[0], username=username, password=password,
+        entry = db.add_entry(destination_group=parent_group, title=path[len(path) - 1], username=username, password=password,
                              url=url)
         if custom_properties and type(custom_properties) is dict:
             for k in custom_properties:
@@ -311,7 +311,7 @@ def secret_write(secret_path: str, db: PyKeePass, db_path: str, username: str = 
         db.save(db_path)
     else:
         # Create new secret
-        entry = db.add_entry(destination_group=parent_group, title=path[0], username=username, password=password,
+        entry = db.add_entry(destination_group=parent_group, title=path[len(path) - 1], username=username, password=password,
                              url=url)
         if custom_properties and type(custom_properties) is dict:
             for k in custom_properties:
