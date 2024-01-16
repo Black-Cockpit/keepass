@@ -1,19 +1,30 @@
 namespace: hasnimehdi91
-name: reader
-version: 1.0.0
+name: keepass
+version: 2.0.0
 readme: README.md
 authors:
 - Hasni Mehdi <hasnimehdi@outlook.com>
-description: Keepass collection to securely load data from keepass in an ansible playbook or role
+description: |
+  Keepass collection to securely read and write data from and to keepass in an ansible playbook or role.
 license_file: 'LICENSE'
 tags:
 - keepass
-- module
+- keepass_ansible
+- keepass_secrets
+- keepass_automation
+- ansible_secure_variable
+- keepass_module
 - secure_variables
 dependencies: {}
-repository: https://github.com/Black-Cockpit/keepass.reader
-documentation: https://github.com/Black-Cockpit/keepass.reader/blob/master/doc
-homepage: https://github.com/Black-Cockpit/keepass.reader
-issues: https://github.com/Black-Cockpit/keepass.reader/issues
-build_ignore: []
+repository: https://github.com/Black-Cockpit/keepass
+documentation: https://github.com/Black-Cockpit/keepass/blob/master/doc
+homepage: https://github.com/Black-Cockpit/keepass
+issues: https://github.com/Black-Cockpit/keepass/issues
+build_ignore:
+- "**/local_**.*"
+- "**/*.ini"
+- "**/*.kdbx"
+- "**/*.txt"
+- "**/.vscode"
+- "**/*.venv"
 
