@@ -1,13 +1,26 @@
-- name: Test
+- name: Read secret
   hosts: all
   become: no
   connection: local
   tasks:
-  - keepass.reader.secret_reader:
+  - hasnimehdi91.keepass.secret_reader:
       db_path: "secrets.kdbx"
       db_password: "password"
-      secret_path: "foo/bar"
+      secret_path: "foo/bar/secret"
     register: test
   - debug:
       msg: "{{ test.secret }}"
       
+
+- name: Read group secrets
+  hosts: all
+  become: no
+  connection: local
+  tasks:
+  - hasnimehdi91.keepass.group_reader:
+      db_path: "secrets.kdbx"
+      db_password: "password"
+      group_path: "foo/bar"
+    register: test
+  - debug:
+      msg: "{{ test.group }}"

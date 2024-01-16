@@ -19,13 +19,13 @@ except ModuleNotFoundError or NameError:
 
 DOCUMENTATION = r'''
 ---
-module: secret_reader
+module: group_reader
 
-short_description: Keepass secret_reader module
+short_description: Keepass group_reader module
 
 version_added: "1.0.0"
 
-description: This module read from keepass database and return a dumped dictionary for the secret.
+description: This module read from keepass database and return a dumped dictionary for the group.
 
 options:
     db_path:
@@ -36,8 +36,8 @@ options:
         description: Keepass database password.
         required: true
         type: str
-    secret_path:
-        description: Keepass secret path.
+    group_path:
+        description: Keepass group path.
         required: true
         type: str
 author:
@@ -46,14 +46,14 @@ author:
 '''
 
 EXAMPLES = r'''
-# Pass in a message
+# Get group secrets
 - name: Test with a message
-  hasnimehdi91.keepass.secret_reader:
+  hasnimehdi91.keepass.group_reader:
     db_path: "keys.kdbx"
     db_password: "password"
-    secret_path: "/foo/bar"
-  register: secret
-- debug: var=secret
+    group_path: "/foo/bar"
+  register: group
+- debug: var=group
 '''
 
 RETURN = r'''
@@ -66,8 +66,8 @@ failed:
     description: Indicate if the task failed
     type: bool
     returned: always
-secret:
-    description: Dictionary containing the secret data
+group:
+    description: Dictionary containing the group data
     type: dic
     returned: always
 '''
@@ -75,22 +75,22 @@ secret:
 
 def run_module():
     """
-    Keepass secret_reader module
+    Keepass group_reader module
     Returns:
     """
-    secret_dic = dict()
+    group_secret_dic = dict()
 
-    # Keepass secret_reader module arguments
+    # Keepass group_reader module arguments
     module_args = dict(
         db_path=dict(type='str', required=True),
         db_password=dict(type='str', required=True, no_log=True),
-        secret_path=dict(type='str', required=True),
+        group_path=dict(type='str', required=True),
     )
 
     # Keepass module result initialization
     result = dict(
         changed=True,
-        secret=secret_dic,
+        group=group_secret_dic,
         failed=False
     )
 
@@ -112,46 +112,66 @@ def run_module():
         db_password = module.params['db_password']
         db = PyKeePass(filename=db_path, password=db_password)
 
-        secret_dic = secret_to_dic(db, module.params['secret_path'])
+        group_secret_dic = group_to_dic(db, module.params['group_path'])
     except Exception as e:
-        module.fail_json(msg="Failed to read keepass secret", exception=e)
+        module.fail_json(msg="Failed to read keepass group secrets", exception=e)
 
-    result['secret'] = secret_dic
+    result['group'] = group_secret_dic
 
     # Exit with result
     module.exit_json(**result)
 
 
-def secret_to_dic(db: PyKeePass, secret_path: str) -> dict:
+def group_to_dic(db: PyKeePass, group_path: str) -> dict:
     """
-    Read secret from Keepass and convert it to a dic
+    Read group secrets from Keepass and convert them to  list of dictionary [dic]
     Args:
         db: Keepass database
-        secret_path: Secret path
-    Returns: dic
+        group_path: Secret path
+    Returns: [dic]
     """
-    secret = dict()
-    if secret_path is None or secret_path == '' or secret_path.isspace():
+    group_secrets = []
+    if group_path is None or group_path == '' or group_path.isspace():
         raise ValueError("secret_path is required")
-    path = secret_path.split("/")
-    entry = db.find_entries_by_path(path=path)
-    if entry is None:
+    path = group_path.split("/")
+    if path is not None and len(path) > 0:
+        path = [e for e in path if e]
+    else:
         return secret
+        
+    group = db.find_groups(path=path,first=True)
 
-    secret[path[-1]] = dict()
-    if entry.username:
-        secret[path[-1]]["username"] = entry.username
-    if entry.password:
-        secret[path[-1]]["password"] = entry.password
-    if entry.custom_properties and type(entry.custom_properties) is dict:
-        for k in entry.custom_properties:
-            secret[path[-1]][k] = entry.custom_properties[k]
-    return secret
+    if group is None:
+        return group_secrets
+        
+    entries = group.entries
+
+
+    for entry in entries:
+        secret = dict()
+        entry = db.find_entries_by_path(path=entry.path)
+        if entry is None:
+            continue
+        
+        secret[entry.path[-1]] = dict()
+
+        if entry.username:
+            secret[entry.path[-1]]["username"] = entry.username
+        if entry.password:
+            secret[entry.path[-1]]["password"] = entry.password
+
+        if entry.custom_properties and type(entry.custom_properties) is dict:
+            for k in entry.custom_properties:
+                secret[entry.path[-1]][k] = entry.custom_properties[k]
+        group_secrets.append(secret)
+
+    return group_secrets
+
 
 
 def main():
     """
-    Execute keepass secret_reader module
+    Execute keepass group_reader module
     Returns:
 
     """
