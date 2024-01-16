@@ -1,6 +1,6 @@
 namespace: hasnimehdi91
 name: keepass
-version: 2.0.0
+version: 1.0.0
 readme: README.md
 authors:
 - Hasni Mehdi <hasnimehdi@outlook.com>
@@ -21,10 +21,12 @@ documentation: https://github.com/Black-Cockpit/keepass/blob/master/doc
 homepage: https://github.com/Black-Cockpit/keepass
 issues: https://github.com/Black-Cockpit/keepass/issues
 build_ignore:
-- "**/local_**.*"
-- "**/*.ini"
-- "**/*.kdbx"
-- "**/*.txt"
-- "**/.vscode"
-- "**/*.venv"
+- "local_**.*"
+- "*.ini"
+- "*.kdbx"
+- "*.txt"
+- ".vscode"
+- "*.venv"
+- ".git*"
+- "*.cfg"
 
