@@ -1,4 +1,4 @@
-# Ansible Collection - keepass.reader
+# Ansible Collection - hasnimehdi91.keepass
 
 This collection provides modules that allows to read data from KeePass file.
 
@@ -11,10 +11,11 @@ The secret_reader module, read secret based on a given path and covert its data 
 Requirements: `python 3`, `pykeepass==4.0.6`
 
     pip install 'pykeepass==4.0.6' --user
-    ansible-galaxy collection install hasnimehdi91.keepass.secret_reader
+    ansible-galaxy collection install hasnimehdi91.keepass
 
 
-## Variables
+## Modules
+
 - **Module** : `hasnimehdi91.keepass.secret_reader`
   - `db_path`     : Path to KeePass file
   - `db_password` : Password of KeePass file
@@ -27,7 +28,7 @@ Requirements: `python 3`, `pykeepass==4.0.6`
 
 ## Usage
 
-### Read single secret
+#### Read single secret
 
 ```yaml
 - name: Read secret
@@ -50,7 +51,7 @@ ansible-playbook playbook.yml
 ```
 
 
-### Read group secrets
+#### Read group secrets
 
 ```yaml
 - name: Read group secrets

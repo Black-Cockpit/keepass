@@ -1,6 +1,6 @@
 namespace: hasnimehdi91
-name: reader
-version: 2.0.0
+name: keepass
+version: 1.0.0
 readme: README.md
 authors:
 - Hasni Mehdi <hasnimehdi@outlook.com>
