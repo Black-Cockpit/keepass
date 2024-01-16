@@ -5,3 +5,4 @@ action_groups:
   all:
   - secret_reader
   - group_reader
+  - secret_writer

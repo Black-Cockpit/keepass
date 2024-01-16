@@ -46,8 +46,8 @@ author:
 '''
 
 EXAMPLES = r'''
-# Pass in a message
-- name: Test with a message
+# Read secret
+- name: Read secret
   hasnimehdi91.keepass.secret_reader:
     db_path: "keys.kdbx"
     db_password: "password"
@@ -57,7 +57,7 @@ EXAMPLES = r'''
 '''
 
 RETURN = r'''
-# These are examples of possible return values, and in general should use other names for return values.
+# These are the attributes that can be returned by the module.
 changed:
     description: The state of the task.
     type: bool
@@ -66,10 +66,15 @@ failed:
     description: Indicate if the task failed
     type: bool
     returned: always
-secret:
-    description: Dictionary containing the secret data
-    type: dic
-    returned: always
+data:
+    description: Secret data.
+    path:
+        description: Secret path
+        type: str
+    secret:
+        description: Dictionary containing the secret data
+        type: dic
+        returned: always
 '''
 
 
@@ -117,6 +122,7 @@ def run_module():
         module.fail_json(msg="Failed to read keepass secret", exception=e)
 
     result['secret'] = secret_dic
+    result['path'] = module.params['secret_path']
 
     # Exit with result
     module.exit_json(**result)
@@ -130,15 +136,32 @@ def secret_to_dic(db: PyKeePass, secret_path: str) -> dict:
         secret_path: Secret path
     Returns: dic
     """
+
+    # Init secret value
     secret = dict()
+
+    # Check if path is not provided
     if secret_path is None or secret_path == '' or secret_path.isspace():
         raise ValueError("secret_path is required")
     path = secret_path.split("/")
+
+    # Remove white spaces
+    if path is not None and len(path) > 0:
+        path = [e for e in path if e]
+    else:
+        return secret
+
+    # Find secret
     entry = db.find_entries_by_path(path=path)
+
+    # Check if secret does not exist
     if entry is None:
         return secret
 
+    # Append secret key
     secret[path[-1]] = dict()
+
+    # Append secret username, password and extra attributes
     if entry.username:
         secret[path[-1]]["username"] = entry.username
     if entry.password:
@@ -146,6 +169,8 @@ def secret_to_dic(db: PyKeePass, secret_path: str) -> dict:
     if entry.custom_properties and type(entry.custom_properties) is dict:
         for k in entry.custom_properties:
             secret[path[-1]][k] = entry.custom_properties[k]
+
+    # Return secret
     return secret
 
 

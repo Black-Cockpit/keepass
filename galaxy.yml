@@ -1,6 +1,6 @@
 namespace: hasnimehdi91
 name: keepass
-version: 1.0.0
+version: 2.0.0
 readme: README.md
 authors:
 - Hasni Mehdi <hasnimehdi@outlook.com>
@@ -10,8 +10,8 @@ license_file: 'LICENSE'
 tags:
 - keepass
 - keepass_ansible
-- keepass secrets
-- keepass automation
+- keepass_secrets
+- keepass_automation
 - ansible_secure_variable
 - keepass_module
 - secure_variables

@@ -25,7 +25,8 @@ short_description: Keepass group_reader module
 
 version_added: "1.0.0"
 
-description: This module read from keepass database and return a dumped dictionary for the group.
+description: 
+    This module read a group secrets from keepass database and return a dumped list of dictionaries for the group.
 
 options:
     db_path:
@@ -46,8 +47,8 @@ author:
 '''
 
 EXAMPLES = r'''
-# Get group secrets
-- name: Test with a message
+# Read group secrets
+- name: Read group secrets
   hasnimehdi91.keepass.group_reader:
     db_path: "keys.kdbx"
     db_password: "password"
@@ -57,7 +58,7 @@ EXAMPLES = r'''
 '''
 
 RETURN = r'''
-# These are examples of possible return values, and in general should use other names for return values.
+# These are the attributes that can be returned by the module.
 changed:
     description: The state of the task.
     type: bool
@@ -66,10 +67,15 @@ failed:
     description: Indicate if the task failed
     type: bool
     returned: always
-group:
-    description: Dictionary containing the group data
-    type: dic
-    returned: always
+data:
+    description: Groups secrets list
+    path:
+        description: Group path
+        type: str
+    group:
+        description: List of dict containing the group secrets
+        type: [dic]
+        returned: always
 '''
 
 
@@ -117,6 +123,7 @@ def run_module():
         module.fail_json(msg="Failed to read keepass group secrets", exception=e)
 
     result['group'] = group_secret_dic
+    result['path'] = module.params['group_path']
 
     # Exit with result
     module.exit_json(**result)
@@ -130,29 +137,39 @@ def group_to_dic(db: PyKeePass, group_path: str) -> dict:
         group_path: Secret path
     Returns: [dic]
     """
+    # Init group secrets list
     group_secrets = []
+
+    # Check if the groups path was provided
     if group_path is None or group_path == '' or group_path.isspace():
         raise ValueError("secret_path is required")
+
+    # Extract group path
     path = group_path.split("/")
+
+    # Remove white spaces
     if path is not None and len(path) > 0:
         path = [e for e in path if e]
     else:
-        return secret
-        
-    group = db.find_groups(path=path,first=True)
+        return group_secrets
 
+    # Find group
+    group = db.find_groups(path=path, first=True)
+
+    # Check if group exists
     if group is None:
         return group_secrets
-        
+
+    # Extract entries
     entries = group.entries
 
-
+    # Find all entries and map them to dict and then append them to the group list
     for entry in entries:
         secret = dict()
         entry = db.find_entries_by_path(path=entry.path)
         if entry is None:
             continue
-        
+
         secret[entry.path[-1]] = dict()
 
         if entry.username:
@@ -166,7 +183,6 @@ def group_to_dic(db: PyKeePass, group_path: str) -> dict:
         group_secrets.append(secret)
 
     return group_secrets
-
 
 
 def main():
