@@ -269,8 +269,8 @@ functions that take the open database as a parameter, never in
 ### 4.2 README
 
 - The README stays at a high level and is the hub of the docs, in this
-  fixed order: `# Ansible Collection - hasnimehdi91.keepass` → three
-  opening bullets (**What it is**, **How it runs**, **How it is
+  fixed order: `# Ansible Collection - hasnimehdi91.keepass` → the
+  badges → three opening bullets (**What it is**, **How it runs**, **How it is
   shaped**) → `## Architecture` → `## Installation` → `## Operations`
   → `## Documentation` → `## Process And Policy` → `## Scope`.
 - `## Architecture` is one Mermaid flowchart of the playbook, the
@@ -280,7 +280,10 @@ functions that take the open database as a parameter, never in
   each linking to the page of the module.
 - Details never live in the README. They live on one page under
   `docs/`, and the README links to it.
-- No badges, no emoji in headings.
+- The README carries two badges under its title, the status of the
+  test workflow and the license, each linking to its target with an
+  absolute URL. No other page carries a badge.
+- No emoji in headings.
 
 ### 4.3 Pages under `docs/`
 

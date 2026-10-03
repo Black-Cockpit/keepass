@@ -1,5 +1,8 @@
 # Ansible Collection - hasnimehdi91.keepass
 
+[![Tests](https://github.com/Black-Cockpit/keepass/actions/workflows/test_collection.yml/badge.svg)](https://github.com/Black-Cockpit/keepass/actions/workflows/test_collection.yml)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/Black-Cockpit/keepass/blob/master/LICENSE)
+
 - **What it is:** an Ansible collection that manages the secrets of a KeePass database from a
   playbook or a role. It creates a database, writes secrets, reads them one by one or by
   group, and removes them.
