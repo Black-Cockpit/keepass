@@ -120,7 +120,7 @@ def run_module():
 
         group_secret_dic = group_to_dic(db, module.params['group_path'])
     except Exception as e:
-        module.fail_json(msg="Failed to read keepass group secrets", exception=e)
+        module.fail_json(msg="Failed to read keepass group secrets: {0}".format(str(e)), exception=traceback.format_exc())
 
     result['group'] = group_secret_dic
     result['path'] = module.params['group_path']

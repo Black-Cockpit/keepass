@@ -175,30 +175,18 @@ def run_module():
         # Connect to database
         db = PyKeePass(filename=db_path, password=db_password)
 
-        # Init secret username
-        secret_username = module.params['secret_value']['username'] if (
-                ('secret_value' in module.params) and ('username' in module.params['secret_value'])) else None
-
-        # Init secret password
-        secret_password = module.params['secret_value']['password'] if (
-                ('secret_value' in module.params) and ('password' in module.params['secret_value'])) else None
-
-        # Init secret url
-        secret_url = module.params['secret_value']['url'] if (
-                ('secret_value' in module.params) and ('url' in module.params['secret_value'])) else None
-
-        # Init secret custom_properties
-        secret_custom_properties = module.params['secret_value']['custom_properties'] if (
-                ('secret_value' in module.params) and ('custom_properties' in module.params['secret_value'])) else None
+        # secret_value is optional; module.params['secret_value'] is None when omitted
+        secret_value = module.params['secret_value'] or {}
 
         # Init force override
         force = True if (('force' in module.params) and (module.params['force'] is True)) else False
 
         secret_dic, changed = secret_write(secret_path=module.params['secret_path'], db=db, db_path=db_path,
-                                           username=secret_username, password=secret_password, url=secret_url,
-                                           custom_properties=secret_custom_properties, force=force)
+                                           username=secret_value.get('username'), password=secret_value.get('password'),
+                                           url=secret_value.get('url'), custom_properties=secret_value.get('custom_properties'),
+                                           force=force)
     except Exception as e:
-        module.fail_json(msg="Failed to write keepass secret", exception=e)
+        module.fail_json(msg="Failed to write keepass secret: {0}".format(str(e)), exception=traceback.format_exc())
 
     result['secret'] = secret_dic
     result['changed'] = changed is True
@@ -224,6 +212,11 @@ def secret_write(secret_path: str, db: PyKeePass, db_path: str, username: str = 
         force: Indicates if the secret should be replaced if it exists or not.
     Returns: dict
     """
+
+    # pykeepass builds the entry's UserName/Password XML nodes directly from these
+    # values and cannot handle None, so default unset ones to an empty string.
+    username = username or ''
+    password = password or ''
 
     # Check if secret path was not provided
     if secret_path is None or secret_path == '' or secret_path.isspace():
