@@ -3,7 +3,7 @@ name: keepass
 version: 1.0.2
 readme: README.md
 authors:
-- Hasni Mehdi <hasnimehdi@outlook.com>
+- Hasni Mehdi <mehdi@black-cockpit.com>
 description: |
   Keepass collection to securely read and write data from and to keepass in an ansible playbook or role.
 license_file: 'LICENSE'

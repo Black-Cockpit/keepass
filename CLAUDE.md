@@ -41,7 +41,7 @@ plugin, and no lookup plugin.
   ```yaml
   author:
       - Hasni Mehdi (@hasnimehdi91)
-      - hasnimehdi@outlook.com
+      - mehdi@black-cockpit.com
   ```
 
 - `EXAMPLES` opens with a `#` comment naming the scenario. Every task
@@ -110,7 +110,14 @@ plugin, and no lookup plugin.
 Every module follows the same top-to-bottom order:
 
 1. `#!/usr/bin/python` on line 1, then a blank line.
-2. The two-line copyright and licence header.
+2. The two-line copyright and licence header. The collection is MIT
+   licensed, and the licence line is identical in every module:
+
+   ```python
+   # Copyright (c) 2023 Black Cockpit LLC <mehdi@black-cockpit.com>
+   # SPDX-License-Identifier: MIT
+   ```
+
 3. `from __future__ import (absolute_import, division, print_function)`.
 4. Standard library imports, then the `ansible.module_utils.basic`
    import.
