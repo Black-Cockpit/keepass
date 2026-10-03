@@ -1,117 +1,128 @@
 # Ansible Collection - hasnimehdi91.keepass
 
-This collection provides modules that allows to read data from KeePass file.
+- **What it is:** an Ansible collection that manages the secrets of a KeePass database from a
+  playbook or a role. It creates a database, writes secrets, reads them one by one or by
+  group, and removes them.
+- **How it runs:** five modules, each one task in a playbook, called by their fully qualified
+  name `hasnimehdi91.keepass.<module>`. Each task opens the database file with its password,
+  does one thing, and saves the file when something changed.
+- **How it is shaped:** every module is one self-contained Python file built on the
+  `pykeepass` library. There is no server, no agent, and nothing kept open between tasks.
 
-## How it works
+## Architecture
 
-The secret_reader, group_reader  and secret_writer helps on managing the secrets of a keepass database with the ability to integrate it in automated tasks.
+```mermaid
+flowchart LR
+    playbook["Playbook<br/>or role"]
+    create["create_database"]
+    writer["secret_writer"]
+    reader["secret_reader"]
+    group["group_reader"]
+    remover["secret_remover"]
+    library["pykeepass<br/>library"]
+    database[("KeePass database<br/>.kdbx file")]
+
+    playbook --> create
+    playbook --> writer
+    playbook --> reader
+    playbook --> group
+    playbook --> remover
+    create --> library
+    writer --> library
+    reader --> library
+    group --> library
+    remover --> library
+    library --> database
+
+    classDef caller fill:#4477DD22,stroke:#4477DD
+    classDef module fill:#2E7D3222,stroke:#2E7D32
+    classDef lib fill:#B7791F22,stroke:#B7791F
+    classDef data fill:#DD444422,stroke:#DD4444
+    class playbook caller
+    class create,writer,reader,group,remover module
+    class library lib
+    class database data
+```
+
 ## Installation
 
-Requirements: `python 3`, `pykeepass==4.0.6`
+- **Requirements:** ansible-core `2.15.8` or newer, and Python 3 with `pykeepass==4.0.6` on
+  the host where the modules run, which is usually the control node.
 
-    pip install 'pykeepass==4.0.6' --user
-    ansible-galaxy collection install hasnimehdi91.keepass
+```bash
+pip install 'pykeepass==4.0.6' --user
+ansible-galaxy collection install hasnimehdi91.keepass
+```
 
+## Operations
 
-## Modules
+| Operation | Module | Detailed Description |
+| --- | --- | --- |
+| Create an empty database | `hasnimehdi91.keepass.create_database` | [create_database](docs/modules/create-database.md) |
+| Write a secret | `hasnimehdi91.keepass.secret_writer` | [secret_writer](docs/modules/secret-writer.md) |
+| Read a secret | `hasnimehdi91.keepass.secret_reader` | [secret_reader](docs/modules/secret-reader.md) |
+| Read the secrets of a group | `hasnimehdi91.keepass.group_reader` | [group_reader](docs/modules/group-reader.md) |
+| Remove a secret or a group | `hasnimehdi91.keepass.secret_remover` | [secret_remover](docs/modules/secret-remover.md) |
 
----
-- **Module** : `hasnimehdi91.keepass.secret_reader`
-  - `db_path`     : Path to KeePass file
-  - `db_password` : Password of KeePass file
-  - `secret_path` : Path to secret in of KeePass file
----
-- **Module** : `hasnimehdi91.keepass.secret_reader`
-  - `db_path`     : Path to KeePass file
-  - `db_password` : Password of KeePass file
-  - `secret_path` : Path to secret in of KeePass file
----
-- **Module** : `hasnimehdi91.keepass.secret_writer`
-  - `db_path`       : Path to KeePass file
-  - `db_password`   : Password of KeePass file
-  - `secret_path`   : Path to secret in of KeePass file
-  -  `secret_value` : Dictionary containing the secret data. If not provided a empty secret will be created.
-  - `secret_value.username`: Secret username
-  - `secret_value.password:`: Secret password
-  - `secret_value.url:`: Secret password
-  - `secret_value.custom_properties:`: Secret customer properties (key, value)
-  -  `force`: If set to true the secret will be overridden, Default is false
----
-
-## Usage
-
-#### Read single secret
+A short playbook that writes a secret and reads it back:
 
 ```yaml
-- name: Read secret
-  hosts: all
-  become: no
+- name: Write and read a secret
+  hosts: localhost
   connection: local
+  gather_facts: false
   tasks:
-  - hasnimehdi91.keepass.secret_reader:
-      db_path: "secrets.kdbx"
-      db_password: "password"
-      secret_path: "foo/bar/secret"
-    register: test
-  - debug:
-      msg: "{{ test.secret }}"
-      
+    - name: Write secret
+      hasnimehdi91.keepass.secret_writer:
+        db_path: "secrets.kdbx"
+        db_password: "password"
+        secret_path: "foo/bar"
+        secret_value:
+          username: "John"
+          password: "Doe"
+      no_log: true
+
+    - name: Read secret
+      hasnimehdi91.keepass.secret_reader:
+        db_path: "secrets.kdbx"
+        db_password: "password"
+        secret_path: "foo/bar"
+      register: bar
+      no_log: true
 ```
 
-```bash
-ansible-playbook playbook.yml
-```
----
+One runnable playbook per module is in [Examples](docs/examples/README.md).
 
-#### Read group secrets
+## Documentation
 
-```yaml
-- name: Read group secrets
-  hosts: all
-  become: no
-  connection: local
-  tasks:
-  - hasnimehdi91.keepass.group_reader:
-      db_path: "secrets.kdbx"
-      db_password: "password"
-      group_path: "foo/bar"
-    register: test
-  - debug:
-      msg: "{{ test.group }}"
-      
-```
+- **Architecture:** [Architecture](docs/architecture/README.md), the hub of
+  [High Level Architecture](docs/architecture/high-level-architecture.md) and
+  [Paths And Return Values](docs/architecture/paths-and-return-values.md).
+- **Modules:** [Modules](docs/modules/README.md), the hub of
+  [create_database](docs/modules/create-database.md),
+  [secret_writer](docs/modules/secret-writer.md),
+  [secret_reader](docs/modules/secret-reader.md),
+  [group_reader](docs/modules/group-reader.md), and
+  [secret_remover](docs/modules/secret-remover.md).
+- **Examples:** [Examples](docs/examples/README.md), one runnable playbook per module.
+- **Development:** [Development Environment](docs/development/development-environment.md),
+  [Testing](docs/development/testing.md), [Release](docs/development/release.md),
+  [Wiki](docs/development/wiki.md), and the [Runbook](docs/runbook.md), every `make` target.
 
-```bash
-ansible-playbook playbook.yml
-```
----
+- **Automation:** [GitHub Actions](docs/ci/github-actions.md), the workflows and their
+  secrets.
 
-#### Write secret
+## Process And Policy
 
-```yaml
-# Write secret to database
-#
-# Define secret
-- set_fact:
-    secret:
-        username: "John"
-        password: "Doe"
-        custom_properties:
-            gender: "Male"
+- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md), how to propose a change.
+- **Security:** [SECURITY.md](SECURITY.md), how to report a vulnerability, and what the
+  collection does and does not protect.
+- **Engineering rules:** [CLAUDE.md](CLAUDE.md), how every file of the repository is written.
+- **License:** [MIT](LICENSE).
 
-# Write secret
-- name: Write secret
-  hasnimehdi91.keepass.secret_writer:
-    db_path: "keys.kdbx"
-    db_password: "password"
-    secret_path: "/foo/bar"
-    secret_value: "{{ secret }}
-    force: false
-  register: created_secret
-  
-- debug: var=created_secret
-```
+## Scope
 
-```bash
-ansible-playbook playbook.yml
-```
+- **In scope:** creating a KeePass database, and reading, writing, and removing its secrets
+  and groups, with a password.
+- **Out of scope:** key files, attachments, the history of a secret, the encryption settings
+  of a database, and editing a secret in place. A secret is replaced as a whole with `force`.

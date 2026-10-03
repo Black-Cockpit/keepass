@@ -1,10 +1,11 @@
 #!/usr/bin/python
 
-# Copyright: (c) 2023, Hasni Mehdi <hasnimehdi@outlook.com>
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
-from __future__ import (absolute_import, division, print_function)
+# Copyright (c) 2023 Black Cockpit LLC <mehdi@black-cockpit.com>
+# SPDX-License-Identifier: MIT
+from __future__ import absolute_import, division, print_function
 
 import traceback
+
 from ansible.module_utils.basic import AnsibleModule, missing_required_lib
 
 __metaclass__ = type
@@ -13,7 +14,7 @@ try:
     from pykeepass import PyKeePass
 
     HAS_LIB = True
-except ModuleNotFoundError or NameError:
+except (ModuleNotFoundError, NameError):
     HAS_LIB = False
     LIB_IMP_ERR = traceback.format_exc()
 
@@ -25,7 +26,7 @@ short_description: Keepass group_reader module
 
 version_added: "1.0.0"
 
-description: 
+description:
     This module read a group secrets from keepass database and return a dumped list of dictionaries for the group.
 
 options:
@@ -42,8 +43,7 @@ options:
         required: true
         type: str
 author:
-    - Hasni Mehdi (@hasnimehdi91)
-    - hasnimehdi@outlook.com
+    - Mehdi Hasni (@hasnimehdi91)
 '''
 
 EXAMPLES = r'''
@@ -67,15 +67,15 @@ failed:
     description: Indicate if the task failed
     type: bool
     returned: always
-data:
-    description: Groups secrets list
-    path:
-        description: Group path
-        type: str
-    group:
-        description: List of dict containing the group secrets
-        type: [dic]
-        returned: always
+path:
+    description: Group path
+    type: str
+    returned: always
+group:
+    description: List of dictionaries containing the group secrets, each keyed by the secret title
+    type: list
+    elements: dict
+    returned: always
 '''
 
 
@@ -84,6 +84,7 @@ def run_module():
     Keepass group_reader module
     Returns:
     """
+    # Init group secrets
     group_secret_dic = dict()
 
     # Keepass group_reader module arguments
@@ -94,42 +95,49 @@ def run_module():
     )
 
     # Keepass module result initialization
-    result = dict(
-        changed=True,
-        group=group_secret_dic,
-        failed=False
-    )
+    result = dict(changed=False, group=group_secret_dic, failed=False)
 
     # Keepass module initialization
-    module = AnsibleModule(
-        argument_spec=module_args,
-        supports_check_mode=True
-    )
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
+    # Fail if the pykeepass library is missing
     if not HAS_LIB:
         module.fail_json(msg=missing_required_lib("pykeepass"), exception=LIB_IMP_ERR)
 
-    # Return module result
+    # Return module result in check mode
     if module.check_mode:
         module.exit_json(**result)
 
+    # Open the database and read the group secrets
     try:
+        # Read database path
         db_path = module.params['db_path']
+
+        # Read database password
         db_password = module.params['db_password']
+
+        # Connect to database
         db = PyKeePass(filename=db_path, password=db_password)
 
+        # Read group secrets
         group_secret_dic = group_to_dic(db, module.params['group_path'])
     except Exception as e:
-        module.fail_json(msg="Failed to read keepass group secrets: {0}".format(str(e)), exception=traceback.format_exc())
+        # Fail with the error message and its traceback
+        module.fail_json(
+            msg="Failed to read keepass group secrets: {0}".format(str(e)), exception=traceback.format_exc()
+        )
 
+    # Append group secrets to result
     result['group'] = group_secret_dic
+
+    # Append group path to result
     result['path'] = module.params['group_path']
 
     # Exit with result
     module.exit_json(**result)
 
 
-def group_to_dic(db: PyKeePass, group_path: str) -> dict:
+def group_to_dic(db: "PyKeePass", group_path: str) -> dict:
     """
     Read group secrets from Keepass and convert them to  list of dictionary [dic]
     Args:
@@ -165,23 +173,36 @@ def group_to_dic(db: PyKeePass, group_path: str) -> dict:
 
     # Find all entries and map them to dict and then append them to the group list
     for entry in entries:
+        # Init secret value
         secret = dict()
+
+        # Find secret
         entry = db.find_entries_by_path(path=entry.path)
+
+        # Skip secret if it does not exist
         if entry is None:
             continue
 
+        # Append secret key
         secret[entry.path[-1]] = dict()
 
+        # Append secret username
         if entry.username:
             secret[entry.path[-1]]["username"] = entry.username
+
+        # Append secret password
         if entry.password:
             secret[entry.path[-1]]["password"] = entry.password
 
-        if entry.custom_properties and type(entry.custom_properties) is dict:
+        # Append secret custom properties
+        if entry.custom_properties and isinstance(entry.custom_properties, dict):
             for k in entry.custom_properties:
                 secret[entry.path[-1]][k] = entry.custom_properties[k]
+
+        # Append secret to the group list
         group_secrets.append(secret)
 
+    # Return group secrets
     return group_secrets
 
 
@@ -191,6 +212,7 @@ def main():
     Returns:
 
     """
+    # Run module
     run_module()
 
 
@@ -198,4 +220,5 @@ if __name__ == '__main__':
     """
     Module main
     """
+    # Execute module
     main()

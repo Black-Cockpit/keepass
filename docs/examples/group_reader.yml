@@ -1,0 +1,13 @@
+- name: Read group secrets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+  - name: Read group secrets
+    hasnimehdi91.keepass.group_reader:
+      db_path: "secrets.kdbx"
+      db_password: "password"
+      group_path: "foo/bar"
+    register: read_group
+  - debug:
+      msg: "{{ read_group.group }}"

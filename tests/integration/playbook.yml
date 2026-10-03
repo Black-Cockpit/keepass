@@ -1,0 +1,215 @@
+# code: language=ansible
+
+# --------------------------------------------------------------------------------------------------
+# Playbook Name   : Integration tests
+# Description     : Runs every module of the installed hasnimehdi91.keepass collection against a
+#                   new database and asserts each result. The database is created in the
+#                   tests.local directory with a random name and is left in place.
+# Execution Mode  : localhost, local connection.
+# Extra Vars      : tests_local_directory → absolute path of the tests.local directory.
+# --------------------------------------------------------------------------------------------------
+- name: "Integration tests — hasnimehdi91.keepass"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    db_password: "password"
+  tasks:
+    - name: "Verify the tests.local directory is provided"
+      assert:
+        that:
+          - tests_local_directory is defined
+          - tests_local_directory | length > 0
+        quiet: true
+
+    - name: "Create the tests.local directory"
+      file:
+        path: "{{ tests_local_directory }}"
+        state: directory
+        mode: "0755"
+
+    - name: "Set the database path with a random name"
+      set_fact:
+        db_path: "{{ tests_local_directory }}/integration_{{ 999999999 | random }}.kdbx"
+
+    - name: "Create database"
+      hasnimehdi91.keepass.create_database:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+        db_name: "Integration"
+      register: created_database
+
+    - name: "Verify the database was created"
+      assert:
+        that:
+          - created_database.changed
+          - created_database.path == db_path
+        quiet: true
+
+    - name: "Create database again"
+      hasnimehdi91.keepass.create_database:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+      register: created_database
+
+    - name: "Verify the existing database was left unchanged"
+      assert:
+        that:
+          - not created_database.changed
+        quiet: true
+
+    - name: "Write secret"
+      hasnimehdi91.keepass.secret_writer:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+        secret_path: "foo/bar"
+        secret_value:
+          username: "John"
+          password: "Doe"
+          custom_properties:
+            gender: "Male"
+      register: written_secret
+
+    - name: "Verify the secret was written"
+      assert:
+        that:
+          - written_secret.changed
+          - written_secret.secret.bar.username == "John"
+        quiet: true
+
+    - name: "Write secret again"
+      hasnimehdi91.keepass.secret_writer:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+        secret_path: "foo/bar"
+        secret_value:
+          username: "Other"
+          password: "Other"
+      register: written_secret
+
+    - name: "Verify the existing secret was left unchanged"
+      assert:
+        that:
+          - not written_secret.changed
+          - written_secret.secret.bar.username == "John"
+        quiet: true
+
+    - name: "Write secret to the root group"
+      hasnimehdi91.keepass.secret_writer:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+        secret_path: "/rootsecret"
+        secret_value:
+          username: "root"
+          password: "toor"
+      register: written_root_secret
+
+    - name: "Verify the root secret was written"
+      assert:
+        that:
+          - written_root_secret.changed
+        quiet: true
+
+    - name: "Read secret"
+      hasnimehdi91.keepass.secret_reader:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+        secret_path: "/foo/bar"
+      register: read_secret
+
+    - name: "Verify the secret was read"
+      assert:
+        that:
+          - not read_secret.changed
+          - read_secret.secret.bar.username == "John"
+          - read_secret.secret.bar.password == "Doe"
+          - read_secret.secret.bar.gender == "Male"
+        quiet: true
+
+    - name: "Read group secrets"
+      hasnimehdi91.keepass.group_reader:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+        group_path: "foo"
+      register: read_group
+
+    - name: "Verify the group secrets were read"
+      assert:
+        that:
+          - not read_group.changed
+          - read_group.group | length == 1
+          - read_group.group[0].bar.username == "John"
+        quiet: true
+
+    - name: "Remove group without recurse"
+      hasnimehdi91.keepass.secret_remover:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+        secret_path: "foo"
+      register: removed_group
+      ignore_errors: true
+
+    - name: "Verify the group that is not empty was not removed"
+      assert:
+        that:
+          - removed_group.failed
+          - "'is not empty' in removed_group.msg"
+        quiet: true
+
+    - name: "Remove secret"
+      hasnimehdi91.keepass.secret_remover:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+        secret_path: "rootsecret"
+      register: removed_secret
+
+    - name: "Verify the secret was removed"
+      assert:
+        that:
+          - removed_secret.changed
+          - removed_secret.removed.entries == ["rootsecret"]
+        quiet: true
+
+    - name: "Remove secret again"
+      hasnimehdi91.keepass.secret_remover:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+        secret_path: "rootsecret"
+      register: removed_secret
+
+    - name: "Verify the missing secret reported no change"
+      assert:
+        that:
+          - not removed_secret.changed
+        quiet: true
+
+    - name: "Remove group with recurse"
+      hasnimehdi91.keepass.secret_remover:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+        secret_path: "foo"
+        target: group
+        recurse: true
+      register: removed_group
+
+    - name: "Verify the group and its content were removed"
+      assert:
+        that:
+          - removed_group.changed
+          - removed_group.removed.groups == ["foo"]
+          - removed_group.removed.entries == ["foo/bar"]
+        quiet: true
+
+    - name: "Read removed secret"
+      hasnimehdi91.keepass.secret_reader:
+        db_path: "{{ db_path }}"
+        db_password: "{{ db_password }}"
+        secret_path: "foo/bar"
+      register: read_secret
+
+    - name: "Verify the removed secret is not returned"
+      assert:
+        that:
+          - read_secret.secret == {}
+        quiet: true

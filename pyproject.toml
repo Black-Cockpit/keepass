@@ -1,0 +1,46 @@
+# --------------------------------------------------------------------------------------------------
+# File Name       : pyproject.toml
+# Description     : Tooling configuration for the hasnimehdi91.keepass collection. Configures the
+#                   ruff formatter and linter for the Python modules. The collection is built
+#                   with ansible-galaxy, so the file declares no Python package.
+# Scope           : Loaded automatically when ruff runs from the repository root. Excluded from
+#                   the built collection.
+# --------------------------------------------------------------------------------------------------
+
+[tool.ruff]
+# Maximum line length for the formatter and the linter
+line-length = 120
+
+# Lowest Python version the code must stay compatible with, the oldest one the supported
+# ansible-core releases run on the control node
+target-version = "py310"
+
+# Only the collection sources, their tests and the scripts are formatted and linted
+include = ["plugins/**/*.py", "tests/**/*.py", "scripts/**/*.py"]
+
+[tool.ruff.format]
+# Existing quotes are kept as written, single or double
+quote-style = "preserve"
+
+# Four-space indentation and Unix line endings
+indent-style = "space"
+line-ending = "lf"
+
+[tool.ruff.lint]
+# Rule families enforced on every module
+#   E, W → pycodestyle errors and warnings
+#   F    → pyflakes (unused names, undefined names)
+#   I    → import ordering
+#   B    → bugbear (likely bugs and risky constructs)
+select = ["E", "W", "F", "I", "B"]
+
+[tool.ruff.lint.isort]
+# Collection imports are grouped as first-party code
+known-first-party = ["ansible_collections.hasnimehdi91.keepass"]
+
+[tool.pytest.ini_options]
+# Only the unit and module tests are collected
+testpaths = ["tests/unit"]
+
+# The modules are imported by their file name, straight from the checkout
+pythonpath = ["plugins/modules"]

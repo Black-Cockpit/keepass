@@ -1,0 +1,98 @@
+# Run the lint checks and the tests of the collection.
+#
+# Triggers
+#   pull_request       every pull request
+#   push               every push to master
+#   workflow_dispatch  on demand from the Actions tab
+#   workflow_call      from the publish workflow, before a release is published
+#
+# Matrix
+#   One job per supported ansible-core line, each on a Python version that
+#   line runs on. The sanity tests run on the newest line only, because their
+#   ignore file is named after one ansible-core version.
+#
+# Requirements
+#   None. The job needs no secret.
+#
+# The jobs drive the same make targets used locally, so a failure here is
+# reproduced with the same command on a workstation.
+name: Test collection
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+  workflow_call:
+
+# A new push to the same branch or pull request replaces the run in progress
+concurrency:
+  group: test-collection-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ansible-core ${{ matrix.ansible_core }}, Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      # One failing version does not hide the result of the others
+      fail-fast: false
+      matrix:
+        include:
+          # The lowest ansible-core version declared in meta/runtime.yml
+          - ansible_core: '2.15'
+            python: '3.11'
+            ansible: 'ansible>=8.7.0,<9.0.0'
+            sanity: false
+          # The lowest ansible-core version requirements.txt installs
+          - ansible_core: '2.17'
+            python: '3.12'
+            ansible: 'ansible>=10.0.0,<11.0.0'
+            sanity: false
+          # The newest version requirements.txt allows
+          - ansible_core: 'latest'
+            python: '3.12'
+            ansible: ''
+            sanity: true
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+
+      # The Makefile builds its virtual environment with the Python of the job
+      - name: Install the virtual environment
+        run: make install_virtual_env PYTHON_VERSION_12=python${{ matrix.python }}
+
+      # requirements.txt installs the newest allowed Ansible, so the older
+      # lines are installed over it
+      - name: Install the Ansible version of the job
+        if: matrix.ansible != ''
+        env:
+          ANSIBLE_REQUIREMENT: ${{ matrix.ansible }}
+        run: ops.venv/bin/pip install "${ANSIBLE_REQUIREMENT}"
+
+      - name: Show the installed versions
+        run: ops.venv/bin/ansible --version
+
+      - name: Lint the source code
+        run: make lint_source_code
+
+      - name: Run the unit tests
+        run: make run_unit_tests
+
+      - name: Run the integration tests
+        run: make run_integration_tests
+
+      - name: Run the sanity tests
+        if: matrix.sanity
+        run: make run_sanity_tests
