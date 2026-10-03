@@ -14,3 +14,6 @@ pykeepass==4.0.6
 
 # Source code formatter and linter for the Python modules
 ruff>=0.9.0,<1.0.0
+
+# Test runner for the unit and module tests
+pytest>=8.0.0,<10.0.0

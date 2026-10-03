@@ -268,7 +268,33 @@ functions that take the open database as a parameter, never in
 
 ---
 
-## 5. Git rules
+## 5. Test rules
+
+- A change to a module changes its tests in the same commit. A new
+  module ships with its test file.
+- Unit and module tests live in `tests/unit/plugins/modules/`, one
+  `test_<module>.py` per module, and run with `pytest`.
+  - Tests named `test_worker_*` call the worker functions directly.
+  - Tests named `test_module_*` run the module file as Ansible runs
+    it, through `run_module` in `tests/unit/conftest.py`, and check
+    the JSON it prints.
+- Tests use real databases, never mocks. Every database a test creates
+  goes through the `database_path` or `database` fixture, which places
+  it in `tests.local/` with a random file name.
+- Tests never delete anything from `tests.local/`. The directory is
+  emptied by hand.
+- Integration tests live in `tests/integration/playbook.yml`. Every
+  module call uses the fully qualified collection name, registers its
+  result, and is followed by an `assert` task.
+- Test functions follow the docstring and inline comment rules of
+  section 1.
+- The `make` targets are the only entry points: `lint_source_code`,
+  `run_unit_tests`, `run_integration_tests`, `run_sanity_tests`, and
+  `run_tests`, which runs the first three.
+
+---
+
+## 6. Git rules
 
 - Default branch: `master`. Work happens on `snake_case` topic
   branches, merged via pull request.

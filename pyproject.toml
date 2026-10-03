@@ -15,8 +15,8 @@ line-length = 120
 # ansible-core releases run on the control node
 target-version = "py310"
 
-# Only the collection sources are formatted and linted
-include = ["plugins/**/*.py"]
+# Only the collection sources and their tests are formatted and linted
+include = ["plugins/**/*.py", "tests/**/*.py"]
 
 [tool.ruff.format]
 # Existing quotes are kept as written, single or double
@@ -37,3 +37,10 @@ select = ["E", "W", "F", "I", "B"]
 [tool.ruff.lint.isort]
 # Collection imports are grouped as first-party code
 known-first-party = ["ansible_collections.hasnimehdi91.keepass"]
+
+[tool.pytest.ini_options]
+# Only the unit and module tests are collected
+testpaths = ["tests/unit"]
+
+# The modules are imported by their file name, straight from the checkout
+pythonpath = ["plugins/modules"]

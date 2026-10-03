@@ -27,7 +27,7 @@ short_description: Keepass secret_writer module
 
 version_added: "1.0.0"
 
-description: 
+description:
     This module write a secret to a keepass database and return dictionary for the secret.
     Note: If the database does not exist, a new one will be created.
 

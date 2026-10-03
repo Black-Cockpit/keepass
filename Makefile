@@ -13,7 +13,13 @@ SHELL := /bin/bash
 .PHONY: \
     install_virtual_env \
     check_virtual_env \
-    format_source_code
+    format_source_code \
+    lint_source_code \
+    build_collection \
+    run_unit_tests \
+    run_integration_tests \
+    run_sanity_tests \
+    run_tests
 
 # Extract the name of the current Makefile
 # Useful for debugging or referencing the Makefile itself
@@ -38,6 +44,41 @@ CONF_DIR_CONTEXT := .
 
 # Python version used to build the virtual environment
 PYTHON_VERSION_12 := python3.12
+
+# Python version the sanity tests run against
+SANITY_PYTHON_VERSION := 3.12
+
+# Collection build output directory
+# Notes:
+#   - Holds the namespace-name-version.tar.gz artifact produced by
+#     build_collection.
+#   - Listed in the galaxy.yml build_ignore, so a previous artifact is never
+#     packaged into the next one.
+COLLECTION_BUILD_DIR := $(CONF_DIR_CONTEXT)/dist
+
+# Collection identity, read from galaxy.yml
+# Notes:
+#   - Scraped with awk rather than a YAML parser so the Makefile can be
+#     parsed before the virtual environment exists.
+#   - COLLECTION_ARTIFACT is the file ansible-galaxy produces for the version
+#     currently declared in galaxy.yml; bump the version there, never here.
+COLLECTION_METADATA := $(CONF_DIR_CONTEXT)/galaxy.yml
+COLLECTION_NAMESPACE := $(shell awk '/^namespace:/ {print $$2}' $(COLLECTION_METADATA) 2>/dev/null)
+COLLECTION_NAME := $(shell awk '/^name:/ {print $$2}' $(COLLECTION_METADATA) 2>/dev/null)
+COLLECTION_VERSION := $(shell awk '/^version:/ {print $$2}' $(COLLECTION_METADATA) 2>/dev/null)
+COLLECTION_ARTIFACT := $(COLLECTION_BUILD_DIR)/$(COLLECTION_NAMESPACE)-$(COLLECTION_NAME)-$(COLLECTION_VERSION).tar.gz
+
+# Local test directory
+# Notes:
+#   - Holds every database the tests create and the collection installed for
+#     the integration tests.
+#   - Ignored by git and excluded from the built collection.
+#   - Never emptied by a target: it is emptied by hand.
+TESTS_LOCAL_DIR := $(abspath $(CONF_DIR_CONTEXT)/tests.local)
+
+# Collections directory the built collection is installed into for the
+# integration tests
+TESTS_COLLECTIONS_DIR := $(TESTS_LOCAL_DIR)/collections
 
 # --------------------------------------------------------------------------------------------------
 # Target: install_virtual_env
@@ -100,3 +141,160 @@ check_virtual_env:
 format_source_code: check_virtual_env
 	@source "${CONF_DIR_CONTEXT}/${VIRTUAL_ENV_DIR}/bin/activate" && \
 		cd "${CONF_DIR_CONTEXT}" && ruff format
+
+# --------------------------------------------------------------------------------------------------
+# Target: lint_source_code
+# --------------------------------------------------------------------------------------------------
+# Purpose
+#   Checks the formatting and the lint rules of the Python modules and their
+#   tests with ruff, after validating that the Python virtual environment is
+#   available.
+#
+# Behavior
+#   - Activates the virtual environment, then runs ruff format --check and
+#     ruff check from the project root.
+#   - The files to check and the rules are read from pyproject.toml.
+#   - Fails when a file is not formatted or breaks a lint rule.
+#
+# Idempotency
+#   - Read-only: no file is rewritten.
+#
+# Dependencies
+#   - check_virtual_env
+lint_source_code: check_virtual_env
+	@source "${CONF_DIR_CONTEXT}/${VIRTUAL_ENV_DIR}/bin/activate" && \
+		cd "${CONF_DIR_CONTEXT}" && ruff format --check && ruff check
+
+# --------------------------------------------------------------------------------------------------
+# Target: build_collection
+# --------------------------------------------------------------------------------------------------
+# Purpose
+#   Packages the repository into an installable Ansible collection artifact,
+#   dist/<namespace>-<name>-<version>.tar.gz.
+#
+# Behavior
+#   - Activates the virtual environment, then runs ansible-galaxy collection
+#     build into COLLECTION_BUILD_DIR.
+#   - Everything the artifact must not ship is excluded through the
+#     galaxy.yml build_ignore list, not through flags here.
+#   - --force overwrites an artifact of the same version, so rebuilding after
+#     an edit does not require bumping galaxy.yml.
+#
+# Idempotency
+#   - Safe to re-run: the output directory is created on demand and the
+#     artifact is rewritten in place.
+#
+# Dependencies
+#   - check_virtual_env
+build_collection: check_virtual_env
+	@mkdir -p "${COLLECTION_BUILD_DIR}"
+	@source "${CONF_DIR_CONTEXT}/${VIRTUAL_ENV_DIR}/bin/activate" && \
+		ansible-galaxy collection build "${CONF_DIR_CONTEXT}" \
+			--output-path "${COLLECTION_BUILD_DIR}" \
+			--force
+
+# --------------------------------------------------------------------------------------------------
+# Target: run_unit_tests
+# --------------------------------------------------------------------------------------------------
+# Purpose
+#   Runs the unit and module tests under tests/unit with pytest, after
+#   validating that the Python virtual environment is available.
+#
+# Behavior
+#   - Activates the virtual environment, then runs pytest from the project
+#     root. The test paths are read from pyproject.toml.
+#   - Every database a test creates is written to tests.local with a random
+#     name and is left in place.
+#
+# Idempotency
+#   - Safe to re-run: every run works on new databases.
+#
+# Dependencies
+#   - check_virtual_env
+run_unit_tests: check_virtual_env
+	@source "${CONF_DIR_CONTEXT}/${VIRTUAL_ENV_DIR}/bin/activate" && \
+		cd "${CONF_DIR_CONTEXT}" && pytest
+
+# --------------------------------------------------------------------------------------------------
+# Target: run_integration_tests
+# --------------------------------------------------------------------------------------------------
+# Purpose
+#   Proves the built collection from a playbook: builds the artifact, installs
+#   it, and runs tests/integration/playbook.yml on localhost.
+#
+# Behavior
+#   - Installs the artifact into TESTS_COLLECTIONS_DIR, replacing the copy of
+#     a previous run.
+#   - Runs the playbook with ANSIBLE_COLLECTIONS_PATH pointing at that
+#     directory, so the modules are resolved by their fully qualified name
+#     from the installed collection and not from the checkout.
+#   - The playbook creates its database in tests.local with a random name.
+#
+# Idempotency
+#   - Safe to re-run: every run works on a new database.
+#
+# Dependencies
+#   - build_collection (and through it check_virtual_env)
+run_integration_tests: build_collection
+	@mkdir -p "${TESTS_COLLECTIONS_DIR}"
+	@source "${CONF_DIR_CONTEXT}/${VIRTUAL_ENV_DIR}/bin/activate" && \
+		ansible-galaxy collection install "${COLLECTION_ARTIFACT}" -p "${TESTS_COLLECTIONS_DIR}" --force && \
+		export ANSIBLE_COLLECTIONS_PATH="${TESTS_COLLECTIONS_DIR}" && \
+		ansible-playbook -i localhost, "${CONF_DIR_CONTEXT}/tests/integration/playbook.yml" \
+			-e "tests_local_directory=${TESTS_LOCAL_DIR}"
+
+# --------------------------------------------------------------------------------------------------
+# Target: run_sanity_tests
+# --------------------------------------------------------------------------------------------------
+# Purpose
+#   Runs the ansible-test sanity checks against the built collection, which
+#   validate the DOCUMENTATION, EXAMPLES and RETURN blocks of every module.
+#
+# Behavior
+#   - Installs the artifact into a temporary directory outside the
+#     repository, which gives the ansible_collections/<namespace>/<name>
+#     layout ansible-test requires. ansible-test lists its targets with git,
+#     so a copy inside the repository, under the git-ignored tests.local
+#     directory, is skipped entirely.
+#   - Runs ansible-test sanity from the installed collection. --venv makes
+#     ansible-test build its own virtual environments and download the
+#     requirements of each check, so the first run needs network access.
+#   - Removes the temporary directory when the run ends, on success and on
+#     failure.
+#
+# Idempotency
+#   - Safe to re-run.
+#
+# Dependencies
+#   - build_collection (and through it check_virtual_env)
+run_sanity_tests: build_collection
+	@source "${CONF_DIR_CONTEXT}/${VIRTUAL_ENV_DIR}/bin/activate" && \
+		sanity_dir="$$(mktemp -d)" && \
+		trap 'rm -rf "$${sanity_dir}"' EXIT && \
+		ansible-galaxy collection install "$(abspath ${COLLECTION_ARTIFACT})" -p "$${sanity_dir}" --force && \
+		cd "$${sanity_dir}/ansible_collections/${COLLECTION_NAMESPACE}/${COLLECTION_NAME}" && \
+		ansible-test sanity --venv --python "${SANITY_PYTHON_VERSION}"
+
+# --------------------------------------------------------------------------------------------------
+# Target: run_tests
+# --------------------------------------------------------------------------------------------------
+# Purpose
+#   Runs the lint checks, the unit tests and the integration tests in that
+#   order, and stops at the first one that fails.
+#
+# Behavior
+#   - Delegates to lint_source_code, run_unit_tests and
+#     run_integration_tests.
+#   - run_sanity_tests is not part of this target.
+#
+# Idempotency
+#   - Safe to re-run.
+#
+# Dependencies
+#   - lint_source_code
+#   - run_unit_tests
+#   - run_integration_tests
+run_tests:
+	@$(MAKE) --no-print-directory lint_source_code
+	@$(MAKE) --no-print-directory run_unit_tests
+	@$(MAKE) --no-print-directory run_integration_tests

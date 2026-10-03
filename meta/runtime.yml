@@ -6,3 +6,5 @@ action_groups:
   - secret_reader
   - group_reader
   - secret_writer
+  - create_database
+  - secret_remover

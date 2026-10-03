@@ -5,6 +5,7 @@
 from __future__ import absolute_import, division, print_function
 
 import traceback
+
 from ansible.module_utils.basic import AnsibleModule, missing_required_lib
 
 __metaclass__ = type
@@ -25,7 +26,7 @@ short_description: Keepass group_reader module
 
 version_added: "1.0.0"
 
-description: 
+description:
     This module read a group secrets from keepass database and return a dumped list of dictionaries for the group.
 
 options:
