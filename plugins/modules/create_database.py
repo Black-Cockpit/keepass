@@ -86,8 +86,7 @@ options:
 extends_documentation_fragment:
     - ansible.builtin.files
 author:
-    - Hasni Mehdi (@hasnimehdi91)
-    - mehdi@black-cockpit.com
+    - Mehdi Hasni (@hasnimehdi91)
 '''
 
 EXAMPLES = r'''

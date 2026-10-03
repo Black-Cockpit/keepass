@@ -1,0 +1,13 @@
+- name: Create database
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+  - name: Create database
+    hasnimehdi91.keepass.create_database:
+      db_path: "secrets.kdbx"
+      db_password: "password"
+      db_name: "Secrets"
+    register: database
+  - debug:
+      msg: "{{ database.path }}"

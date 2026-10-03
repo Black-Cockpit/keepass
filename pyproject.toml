@@ -15,8 +15,8 @@ line-length = 120
 # ansible-core releases run on the control node
 target-version = "py310"
 
-# Only the collection sources and their tests are formatted and linted
-include = ["plugins/**/*.py", "tests/**/*.py"]
+# Only the collection sources, their tests and the scripts are formatted and linted
+include = ["plugins/**/*.py", "tests/**/*.py", "scripts/**/*.py"]
 
 [tool.ruff.format]
 # Existing quotes are kept as written, single or double

@@ -44,7 +44,6 @@ options:
         type: str
 author:
     - Mehdi Hasni (@hasnimehdi91)
-    - mehdi@black-cockpit.com
 '''
 
 EXAMPLES = r'''
@@ -68,15 +67,15 @@ failed:
     description: Indicate if the task failed
     type: bool
     returned: always
-data:
-    description: Groups secrets list
-    path:
-        description: Group path
-        type: str
-    group:
-        description: List of dict containing the group secrets
-        type: [dic]
-        returned: always
+path:
+    description: Group path
+    type: str
+    returned: always
+group:
+    description: List of dictionaries containing the group secrets, each keyed by the secret title
+    type: list
+    elements: dict
+    returned: always
 '''
 
 
@@ -196,7 +195,7 @@ def group_to_dic(db: "PyKeePass", group_path: str) -> dict:
             secret[entry.path[-1]]["password"] = entry.password
 
         # Append secret custom properties
-        if entry.custom_properties and type(entry.custom_properties) is dict:
+        if entry.custom_properties and isinstance(entry.custom_properties, dict):
             for k in entry.custom_properties:
                 secret[entry.path[-1]][k] = entry.custom_properties[k]
 

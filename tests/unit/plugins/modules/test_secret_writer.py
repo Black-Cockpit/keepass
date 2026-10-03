@@ -1,6 +1,7 @@
 # Copyright (c) 2023 Black Cockpit LLC <mehdi@black-cockpit.com>
 # SPDX-License-Identifier: MIT
 import os
+import stat
 
 import pytest
 import secret_writer
@@ -219,6 +220,59 @@ def test_module_masks_database_password(database: str):
 
     # Check the database password is masked
     assert result["invocation"]["module_args"]["db_password"] != DATABASE_PASSWORD
+
+
+def test_module_keeps_database_permissions(database: str):
+    """
+    The module keeps the permissions of the database file when it writes a secret
+    Args:
+        database: Database path
+    Returns:
+    """
+    # Restrict the database permissions to its owner
+    os.chmod(database, 0o600)
+
+    # Run module
+    result = run_module(
+        "secret_writer",
+        dict(
+            db_path=database,
+            db_password=DATABASE_PASSWORD,
+            secret_path="foo/permissions",
+            secret_value=dict(username="John"),
+        ),
+    )
+
+    # Check changed state
+    assert result["changed"] is True
+
+    # Check the database permissions
+    assert stat.S_IMODE(os.stat(database).st_mode) == 0o600
+
+
+def test_module_rejects_unknown_secret_value_key(database: str):
+    """
+    The module fails when the secret value holds a key that is not an option
+    Args:
+        database: Database path
+    Returns:
+    """
+    # Run module
+    result = run_module(
+        "secret_writer",
+        dict(
+            db_path=database,
+            db_password=DATABASE_PASSWORD,
+            secret_path="foo/unknown",
+            secret_value=dict(username="John", notes="unknown"),
+        ),
+    )
+
+    # Check failed state
+    assert result["failed"] is True
+
+    # Check the secret was not created
+    assert open_database(database).find_entries_by_path(path=["foo", "unknown"]) is None
 
 
 def test_module_fails_with_wrong_password(database: str):

@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: MIT
 from __future__ import absolute_import, division, print_function
 
-import os.path
+import os
+import stat
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule, missing_required_lib
@@ -28,8 +29,9 @@ short_description: Keepass secret_writer module
 version_added: "1.0.0"
 
 description:
-    This module write a secret to a keepass database and return dictionary for the secret.
-    Note: If the database does not exist, a new one will be created.
+    - This module write a secret to a keepass database and return dictionary for the secret.
+    - If the database does not exist, a new one will be created.
+    - The url of the secret is stored in the database and is not returned.
 
 options:
     db_path:
@@ -48,30 +50,30 @@ options:
         description: dict containing the secret data. If not provided a empty secret will be created.
         required: false
         type: dict
-        username:
-            description: Secret username
-            type: str
-            required: false
-        password:
-            description: Secret password
-            type: str
-            required: false
-        url:
-            description: Secret url
-            type: str
-            required: false
-        custom_properties:
-            description: Secret custom properties
-            type: dict
-            required: false
+        suboptions:
+            username:
+                description: Secret username.
+                required: false
+                type: str
+            password:
+                description: Secret password.
+                required: false
+                type: str
+            url:
+                description: Secret url.
+                required: false
+                type: str
+            custom_properties:
+                description: Secret custom properties.
+                required: false
+                type: dict
     force:
-        description: If set to true the secret will be overridden
+        description: If set to true the secret will be overridden.
         required: false
         type: bool
         default: false
 author:
     - Mehdi Hasni (@hasnimehdi91)
-    - mehdi@black-cockpit.com
 '''
 
 EXAMPLES = r'''
@@ -91,7 +93,7 @@ EXAMPLES = r'''
     db_path: "keys.kdbx"
     db_password: "password"
     secret_path: "/foo/bar"
-    secret_value: "{{ secret }}
+    secret_value: "{{ secret }}"
     force: false
   register: created_secret
 - debug: var=created_secret
@@ -107,15 +109,14 @@ failed:
     description: Indicate if the task failed
     type: bool
     returned: always
-data:
-    description: Secret data.
-    path:
-        description: Secret path
-        type: str
-    secret:
-        description: Dictionary containing the secret data
-        type: dict
-        returned: always
+path:
+    description: Secret path
+    type: str
+    returned: always
+secret:
+    description: Dictionary containing the secret data, keyed by the secret title
+    type: dict
+    returned: always
 '''
 
 
@@ -134,15 +135,17 @@ def run_module():
     module_args = dict(
         db_path=dict(type='str', required=True),
         db_password=dict(type='str', required=True, no_log=True),
-        secret_path=dict(type='str', required=True),
+        secret_path=dict(type='str', required=True, no_log=False),
         secret_value=dict(
             type='dict',
             required=False,
             no_log=False,
-            username=dict(type='str', required=False),
-            password=dict(type='str', required=False, no_log=False),
-            url=dict(type='str', required=False),
-            custom_properties=dict(type='dict', required=False),
+            options=dict(
+                username=dict(type='str', required=False),
+                password=dict(type='str', required=False, no_log=False),
+                url=dict(type='str', required=False),
+                custom_properties=dict(type='dict', required=False),
+            ),
         ),
         force=dict(type='bool', required=False, default=False),
     )
@@ -276,12 +279,12 @@ def secret_write(
             )
 
             # Set entry custom properties
-            if custom_properties is not None and type(custom_properties) is dict:
+            if custom_properties is not None and isinstance(custom_properties, dict):
                 for k in custom_properties:
                     entry.set_custom_property(key=str(k), value=str(custom_properties[k]))
 
             # Save database
-            db.save(db_path)
+            _save_database(db, db_path)
 
             # Return replaced secret
             return _convert_secret_to_dic(path, entry, True)
@@ -297,12 +300,12 @@ def secret_write(
             )
 
             # Set entry custom properties
-            if custom_properties and type(custom_properties) is dict:
+            if custom_properties and isinstance(custom_properties, dict):
                 for k in custom_properties:
                     entry.set_custom_property(key=str(k), value=str(custom_properties[k]))
 
             # Save database
-            db.save(db_path)
+            _save_database(db, db_path)
 
             # Return created secret
             return _convert_secret_to_dic(path, entry, True)
@@ -357,12 +360,12 @@ def secret_write(
         )
 
         # Set entry custom properties
-        if custom_properties and type(custom_properties) is dict:
+        if custom_properties and isinstance(custom_properties, dict):
             for k in custom_properties:
                 entry.set_custom_property(key=str(k), value=str(custom_properties[k]))
 
         # Save database
-        db.save(db_path)
+        _save_database(db, db_path)
     else:
         # Create new secret
         entry = db.add_entry(
@@ -370,15 +373,45 @@ def secret_write(
         )
 
         # Set entry custom properties
-        if custom_properties and type(custom_properties) is dict:
+        if custom_properties and isinstance(custom_properties, dict):
             for k in custom_properties:
                 entry.set_custom_property(key=str(k), value=str(custom_properties[k]))
 
         # Save database
-        db.save(db_path)
+        _save_database(db, db_path)
 
     # Return written secret
     return _convert_secret_to_dic(path, entry, True)
+
+
+def _save_database(db: "PyKeePass", db_path: str):
+    """
+    Save the Keepass database and keep the permissions and the owner of its file
+    Args:
+        db: Keepass database
+        db_path: Database path
+    Returns:
+    """
+    # Read database file attributes
+    attributes = os.stat(db_path)
+
+    # Restrict the permissions of the files created while the database is saved
+    previous_umask = os.umask(0o077)
+
+    # Save database and restore the permissions mask
+    try:
+        db.save(db_path)
+    finally:
+        os.umask(previous_umask)
+
+    # Restore database file permissions
+    os.chmod(db_path, stat.S_IMODE(attributes.st_mode))
+
+    # Restore database file owner and group if the user is allowed to
+    try:
+        os.chown(db_path, attributes.st_uid, attributes.st_gid)
+    except PermissionError:
+        pass
 
 
 def _convert_secret_to_dic(path: [], entry: dict, changed: bool) -> (dict, bool):
@@ -397,7 +430,7 @@ def _convert_secret_to_dic(path: [], entry: dict, changed: bool) -> (dict, bool)
         secret[path[-1]]["password"] = entry.password
 
     # Append secret custom properties
-    if entry.custom_properties and type(entry.custom_properties) is dict:
+    if entry.custom_properties and isinstance(entry.custom_properties, dict):
         for k in entry.custom_properties:
             secret[path[-1]][k] = entry.custom_properties[k]
 

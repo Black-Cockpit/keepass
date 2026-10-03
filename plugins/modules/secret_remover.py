@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: MIT
 from __future__ import absolute_import, division, print_function
 
-import os.path
+import os
+import stat
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule, missing_required_lib
@@ -64,8 +65,7 @@ options:
         type: bool
         default: false
 author:
-    - Hasni Mehdi (@hasnimehdi91)
-    - mehdi@black-cockpit.com
+    - Mehdi Hasni (@hasnimehdi91)
 '''
 
 EXAMPLES = r'''
@@ -135,7 +135,7 @@ def run_module():
     module_args = dict(
         db_path=dict(type='str', required=True),
         db_password=dict(type='str', required=True, no_log=True),
-        secret_path=dict(type='str', required=True),
+        secret_path=dict(type='str', required=True, no_log=False),
         target=dict(type='str', required=False, default='any', choices=['any', 'entry', 'group']),
         recurse=dict(type='bool', required=False, default=False),
     )
@@ -272,10 +272,40 @@ def secret_remove(
 
     # Save database if it should be written
     if not check_mode:
-        db.save(db_path)
+        _save_database(db, db_path)
 
     # Return removed paths
     return removed, True
+
+
+def _save_database(db: "PyKeePass", db_path: str):
+    """
+    Save the Keepass database and keep the permissions and the owner of its file
+    Args:
+        db: Keepass database
+        db_path: Database path
+    Returns:
+    """
+    # Read database file attributes
+    attributes = os.stat(db_path)
+
+    # Restrict the permissions of the files created while the database is saved
+    previous_umask = os.umask(0o077)
+
+    # Save database and restore the permissions mask
+    try:
+        db.save(db_path)
+    finally:
+        os.umask(previous_umask)
+
+    # Restore database file permissions
+    os.chmod(db_path, stat.S_IMODE(attributes.st_mode))
+
+    # Restore database file owner and group if the user is allowed to
+    try:
+        os.chown(db_path, attributes.st_uid, attributes.st_gid)
+    except PermissionError:
+        pass
 
 
 def _collect_group_paths(group, removed: dict):

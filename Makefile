@@ -19,7 +19,9 @@ SHELL := /bin/bash
     run_unit_tests \
     run_integration_tests \
     run_sanity_tests \
-    run_tests
+    run_tests \
+    build_wiki \
+    publish_wiki
 
 # Extract the name of the current Makefile
 # Useful for debugging or referencing the Makefile itself
@@ -79,6 +81,20 @@ TESTS_LOCAL_DIR := $(abspath $(CONF_DIR_CONTEXT)/tests.local)
 # Collections directory the built collection is installed into for the
 # integration tests
 TESTS_COLLECTIONS_DIR := $(TESTS_LOCAL_DIR)/collections
+
+# Wiki build output directory
+# Notes:
+#   - Written by build_wiki, removed and written again on every run.
+#   - Under dist, so it is ignored by git and excluded from the built
+#     collection.
+WIKI_BUILD_DIR := $(COLLECTION_BUILD_DIR)/wiki
+
+# Git remote of the GitHub wiki
+# Notes:
+#   - Derived from the origin remote: a GitHub wiki is the repository
+#     <name>.wiki.git beside <name>.git.
+#   - Override it on the command line to publish to another wiki.
+WIKI_REMOTE ?= $(patsubst %.git,%.wiki.git,$(shell git remote get-url origin 2>/dev/null))
 
 # --------------------------------------------------------------------------------------------------
 # Target: install_virtual_env
@@ -256,6 +272,8 @@ run_integration_tests: build_collection
 #     layout ansible-test requires. ansible-test lists its targets with git,
 #     so a copy inside the repository, under the git-ignored tests.local
 #     directory, is skipped entirely.
+#   - Copies tests/sanity into the installed collection, because the built
+#     artifact ships no tests and ansible-test reads its ignore file there.
 #   - Runs ansible-test sanity from the installed collection. --venv makes
 #     ansible-test build its own virtual environments and download the
 #     requirements of each check, so the first run needs network access.
@@ -272,6 +290,8 @@ run_sanity_tests: build_collection
 		sanity_dir="$$(mktemp -d)" && \
 		trap 'rm -rf "$${sanity_dir}"' EXIT && \
 		ansible-galaxy collection install "$(abspath ${COLLECTION_ARTIFACT})" -p "$${sanity_dir}" --force && \
+		mkdir -p "$${sanity_dir}/ansible_collections/${COLLECTION_NAMESPACE}/${COLLECTION_NAME}/tests" && \
+		cp -r "$(abspath ${CONF_DIR_CONTEXT}/tests/sanity)" "$${sanity_dir}/ansible_collections/${COLLECTION_NAMESPACE}/${COLLECTION_NAME}/tests/" && \
 		cd "$${sanity_dir}/ansible_collections/${COLLECTION_NAMESPACE}/${COLLECTION_NAME}" && \
 		ansible-test sanity --venv --python "${SANITY_PYTHON_VERSION}"
 
@@ -279,13 +299,12 @@ run_sanity_tests: build_collection
 # Target: run_tests
 # --------------------------------------------------------------------------------------------------
 # Purpose
-#   Runs the lint checks, the unit tests and the integration tests in that
-#   order, and stops at the first one that fails.
+#   Runs the lint checks, the unit tests, the integration tests and the
+#   sanity tests in that order, and stops at the first one that fails.
 #
 # Behavior
-#   - Delegates to lint_source_code, run_unit_tests and
-#     run_integration_tests.
-#   - run_sanity_tests is not part of this target.
+#   - Delegates to lint_source_code, run_unit_tests, run_integration_tests
+#     and run_sanity_tests.
 #
 # Idempotency
 #   - Safe to re-run.
@@ -294,7 +313,77 @@ run_sanity_tests: build_collection
 #   - lint_source_code
 #   - run_unit_tests
 #   - run_integration_tests
+#   - run_sanity_tests
 run_tests:
 	@$(MAKE) --no-print-directory lint_source_code
 	@$(MAKE) --no-print-directory run_unit_tests
 	@$(MAKE) --no-print-directory run_integration_tests
+	@$(MAKE) --no-print-directory run_sanity_tests
+
+# --------------------------------------------------------------------------------------------------
+# Target: build_wiki
+# --------------------------------------------------------------------------------------------------
+# Purpose
+#   Builds the pages of the GitHub wiki from README.md, CONTRIBUTING.md,
+#   SECURITY.md and every page under docs/.
+#
+# Behavior
+#   - Activates the virtual environment, then runs the wiki build script
+#     (scripts/01_build_wiki.py).
+#   - Names each wiki page after the title of its source page, rewrites the
+#     links between pages into wiki links, and writes the Home page, the
+#     sidebar and the footer.
+#   - Fails when a page links to a file that does not exist, or when two
+#     pages have the same title.
+#
+# Idempotency
+#   - Safe to re-run: WIKI_BUILD_DIR is removed and written again.
+#
+# Dependencies
+#   - check_virtual_env
+build_wiki: check_virtual_env
+	@source "${CONF_DIR_CONTEXT}/${VIRTUAL_ENV_DIR}/bin/activate" && \
+		python "${CONF_DIR_CONTEXT}/scripts/01_build_wiki.py"
+
+# --------------------------------------------------------------------------------------------------
+# Target: publish_wiki
+# --------------------------------------------------------------------------------------------------
+# Purpose
+#   Publishes the built wiki pages to the GitHub wiki of the repository.
+#
+# Behavior
+#   - Rebuilds the wiki pages first, so what is published always matches the
+#     documentation of the working tree.
+#   - Clones WIKI_REMOTE into a temporary directory, replaces every page of
+#     the wiki by the built pages, commits and pushes.
+#   - Pushes nothing when the wiki already holds the built pages.
+#   - Removes the temporary directory when the run ends, on success and on
+#     failure.
+#
+# Idempotency
+#   - Safe to re-run: a second run with unchanged documentation pushes
+#     nothing.
+#
+# Dependencies
+#   - build_wiki (and through it check_virtual_env)
+#   - The wiki enabled on the GitHub repository, with its first page created,
+#     and push rights on it.
+# --------------------------------------------------------------------------------------------------
+# ⚠️ CAUTION: This target is public. The pages are visible to everyone as soon
+# as they are pushed, and a page edited by hand in the wiki is overwritten.
+# --------------------------------------------------------------------------------------------------
+publish_wiki: build_wiki
+	@wiki_dir="$$(mktemp -d)" && \
+		trap 'rm -rf "$${wiki_dir}"' EXIT && \
+		git clone --quiet "${WIKI_REMOTE}" "$${wiki_dir}" && \
+		find "$${wiki_dir}" -mindepth 1 -maxdepth 1 -not -name .git -exec rm -rf {} + && \
+		cp "${WIKI_BUILD_DIR}"/*.md "$${wiki_dir}/" && \
+		cd "$${wiki_dir}" && \
+		git add --all && \
+		if git diff --cached --quiet; then \
+			echo "The wiki is already up to date."; \
+		else \
+			git commit --quiet -m ":bulb: Updated wiki from the documentation" && \
+			git push --quiet && \
+			echo "Published the wiki to ${WIKI_REMOTE}"; \
+		fi

@@ -1,0 +1,10 @@
+plugins/modules/create_database.py validate-modules:import-before-documentation
+plugins/modules/create_database.py validate-modules:missing-gplv3-license
+plugins/modules/group_reader.py validate-modules:import-before-documentation
+plugins/modules/group_reader.py validate-modules:missing-gplv3-license
+plugins/modules/secret_reader.py validate-modules:import-before-documentation
+plugins/modules/secret_reader.py validate-modules:missing-gplv3-license
+plugins/modules/secret_remover.py validate-modules:import-before-documentation
+plugins/modules/secret_remover.py validate-modules:missing-gplv3-license
+plugins/modules/secret_writer.py validate-modules:import-before-documentation
+plugins/modules/secret_writer.py validate-modules:missing-gplv3-license

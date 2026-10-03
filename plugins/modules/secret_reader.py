@@ -43,7 +43,6 @@ options:
         type: str
 author:
     - Mehdi Hasni (@hasnimehdi91)
-    - mehdi@black-cockpit.com
 '''
 
 EXAMPLES = r'''
@@ -67,15 +66,14 @@ failed:
     description: Indicate if the task failed
     type: bool
     returned: always
-data:
-    description: Secret data.
-    path:
-        description: Secret path
-        type: str
-    secret:
-        description: Dictionary containing the secret data
-        type: dic
-        returned: always
+path:
+    description: Secret path
+    type: str
+    returned: always
+secret:
+    description: Dictionary containing the secret data, keyed by the secret title
+    type: dict
+    returned: always
 '''
 
 
@@ -91,7 +89,7 @@ def run_module():
     module_args = dict(
         db_path=dict(type='str', required=True),
         db_password=dict(type='str', required=True, no_log=True),
-        secret_path=dict(type='str', required=True),
+        secret_path=dict(type='str', required=True, no_log=False),
     )
 
     # Keepass module result initialization
@@ -179,7 +177,7 @@ def secret_to_dic(db: "PyKeePass", secret_path: str) -> dict:
         secret[path[-1]]["password"] = entry.password
 
     # Append secret custom properties
-    if entry.custom_properties and type(entry.custom_properties) is dict:
+    if entry.custom_properties and isinstance(entry.custom_properties, dict):
         for k in entry.custom_properties:
             secret[path[-1]][k] = entry.custom_properties[k]
 

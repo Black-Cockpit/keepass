@@ -1,6 +1,7 @@
 # Copyright (c) 2023 Black Cockpit LLC <mehdi@black-cockpit.com>
 # SPDX-License-Identifier: MIT
 import os
+import stat
 
 import pytest
 import secret_remover
@@ -290,6 +291,26 @@ def test_module_removes_secret(database: str):
 
     # Check changed state
     assert result["changed"] is False
+
+
+def test_module_keeps_database_permissions(database: str):
+    """
+    The module keeps the permissions of the database file when it removes a secret
+    Args:
+        database: Database path
+    Returns:
+    """
+    # Restrict the database permissions to its owner
+    os.chmod(database, 0o600)
+
+    # Run module
+    result = run_module("secret_remover", dict(db_path=database, db_password=DATABASE_PASSWORD, secret_path="foo/bar"))
+
+    # Check changed state
+    assert result["changed"] is True
+
+    # Check the database permissions
+    assert stat.S_IMODE(os.stat(database).st_mode) == 0o600
 
 
 def test_module_fails_on_non_empty_group_without_recurse(database: str):

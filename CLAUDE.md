@@ -35,13 +35,13 @@ plugin, and no lookup plugin.
 - Every option is documented with `description`, `required` and `type`,
   in that order. `default` is added when the argument spec sets one.
   Option descriptions are short sentences that end with a period.
-- Nested keys of a dictionary option are documented under that option.
+- Nested keys of a dictionary option are documented under that option
+  as `suboptions`, and declared as `options` in the argument spec.
 - The `author` list is always:
 
   ```yaml
   author:
       - Mehdi Hasni (@hasnimehdi91)
-      - mehdi@black-cockpit.com
   ```
 
 - `EXAMPLES` opens with a `#` comment naming the scenario. Every task
@@ -230,10 +230,15 @@ functions that take the open database as a parameter, never in
 
 ## 3. Collection metadata rules
 
-- A new module is added in four places in the same commit:
+- A new module is added in these places in the same commit:
   `plugins/modules/<module>.py`, the `action_groups.all` list in
-  `meta/runtime.yml`, the `## Modules` and `## Usage` sections of the
-  README, and `docs/examples/`.
+  `meta/runtime.yml`, its test file, its page under `docs/modules/`
+  with its line in `docs/modules/README.md`, its row in the
+  `## Operations` table of the README, its example playbook under
+  `docs/examples/`, and its two lines in the sanity ignore file.
+- `meta/runtime.yml` holds the lowest supported ansible-core version in
+  `requires_ansible`. The README installation section states the same
+  version.
 - `galaxy.yml` holds the collection version. A release bumps `version`
   there in its own commit.
 - Files that must not reach Galaxy are listed in `build_ignore` in
@@ -250,21 +255,72 @@ functions that take the open database as a parameter, never in
 
 ## 4. README and docs rules
 
-- The README is short and operational, in this fixed order:
-  `# Ansible Collection - hasnimehdi91.keepass` → `## How it works` →
-  `## Installation` → `## Modules` → `## Usage`. No badges, no emoji in
-  headings.
-- `## Modules` lists every module as `- **Module** : \`<fqcn>\``
-  followed by one indented bullet per option, `\`option\` : description`.
-  Entries are separated by `---`.
-- `## Usage` has one `####` subsection per module. Each subsection
-  holds a fenced `yaml` example followed by the fenced `bash` command
-  that runs it.
-- README examples match the module's `EXAMPLES` block.
-- `docs/examples/playbook.yml` is a runnable playbook: one play per
-  module, each with `hosts: all`, `become: no` and
-  `connection: local`.
+### 4.1 Written for people
+
+- Docs are written for the people who use and change the collection,
+  not for the code. Short sentences, plain words, one idea per
+  sentence. A page gives every detail a reader needs to act, and
+  nothing they do not.
+- Pages stay short. A page that grows past one subject is split, and
+  the pages link to each other.
+- A page states only what the code does today. A change of behaviour
+  changes its page in the same commit.
+
+### 4.2 README
+
+- The README stays at a high level and is the hub of the docs, in this
+  fixed order: `# Ansible Collection - hasnimehdi91.keepass` → three
+  opening bullets (**What it is**, **How it runs**, **How it is
+  shaped**) → `## Architecture` → `## Installation` → `## Operations`
+  → `## Documentation` → `## Process And Policy` → `## Scope`.
+- `## Architecture` is one Mermaid flowchart of the playbook, the
+  modules, the library and the database.
+- `## Operations` is a table
+  `| Operation | Module | Detailed Description |`, one row per module,
+  each linking to the page of the module.
+- Details never live in the README. They live on one page under
+  `docs/`, and the README links to it.
+- No badges, no emoji in headings.
+
+### 4.3 Pages under `docs/`
+
+- Files are `kebab-case.md`, grouped by subject: `docs/architecture/`,
+  `docs/modules/`, `docs/development/`, and `docs/runbook.md`.
+- Every page has one `#` title and `##` sections in Title Case.
+- Every page opens with bullets in the form
+  `- **Lead-in:** explanation.` that say what the subject is and what
+  matters most about it.
+- Every page except a hub page holds at least one Mermaid `flowchart`
+  with `classDef` colours in the form `fill:#RRGGBB22,stroke:#RRGGBB`.
+- Body text is bullet lists of `- **Lead-in:** explanation.`. Options
+  and return values are tables.
+- Every page closes with a `## Related Documentation` list. A hub page,
+  the `README.md` of a `docs/` directory, holds a
+  `## Documentation Map` and a `## Reading Path` instead.
+- A module page is named after the module with dashes, and has these
+  sections in this order: `## Flow`, `## Options`, `## Behaviour`,
+  `## Return Values`, `## Examples`, `## Related Documentation`.
+- A module page and the `DOCUMENTATION`, `EXAMPLES` and `RETURN`
+  blocks of the module say the same thing.
+- `docs/runbook.md` lists every `make` target with what it does and
+  what it changes. A new target adds its row in the same commit.
+
+### 4.4 Wiki
+
+- The GitHub wiki is generated from the README, `CONTRIBUTING.md`,
+  `SECURITY.md` and the pages under `docs/` by `make build_wiki`, and
+  published by `make publish_wiki`. A wiki page is never edited by hand.
+- A wiki page is named after the title of its source page, so every
+  page title is unique.
+- Links between pages are relative links to the `.md` file. The build
+  turns them into wiki links.
+
+### 4.5 Examples
+
+- `docs/examples/` holds one runnable playbook per module, named
+  `<module>.yml`, and a `README.md` that indexes them.
 - Every YAML example is valid YAML. Quotes and brackets are closed.
+- Examples use placeholder values only.
 
 ---
 
