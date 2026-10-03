@@ -2,7 +2,7 @@
 
 # Copyright (c) 2023 Black Cockpit LLC <mehdi@black-cockpit.com>
 # SPDX-License-Identifier: MIT
-from __future__ import (absolute_import, division, print_function)
+from __future__ import absolute_import, division, print_function
 
 import os.path
 import traceback
@@ -15,7 +15,7 @@ try:
     from pykeepass import PyKeePass, create_database
 
     HAS_LIB = True
-except ModuleNotFoundError or NameError:
+except (ModuleNotFoundError, NameError):
     HAS_LIB = False
     LIB_IMP_ERR = traceback.format_exc()
 
@@ -70,7 +70,7 @@ options:
         type: bool
         default: false
 author:
-    - Hasni Mehdi (@hasnimehdi91)
+    - Mehdi Hasni (@hasnimehdi91)
     - mehdi@black-cockpit.com
 '''
 
@@ -124,13 +124,16 @@ def run_module():
     Keepass secret_writer module
     Returns:
     """
+    # Init secret dictionary
     secret_dic = dict()
+
+    # Init changed state
     changed = False
 
     # Keepass secret_writer module arguments
     module_args = dict(
         db_path=dict(type='str', required=True),
-        db_password=dict(type='str', required=True, no_log=False),
+        db_password=dict(type='str', required=True, no_log=True),
         secret_path=dict(type='str', required=True),
         secret_value=dict(
             type='dict',
@@ -139,33 +142,31 @@ def run_module():
             username=dict(type='str', required=False),
             password=dict(type='str', required=False, no_log=False),
             url=dict(type='str', required=False),
-            custom_properties=dict(type='dict', required=False)
+            custom_properties=dict(type='dict', required=False),
         ),
-        force=dict(type='bool', required=False, default=False)
+        force=dict(type='bool', required=False, default=False),
     )
 
     # Keepass module result initialization
-    result = dict(
-        changed=False,
-        secret=secret_dic,
-        failed=False
-    )
+    result = dict(changed=False, secret=secret_dic, failed=False)
 
     # Keepass module initialization
-    module = AnsibleModule(
-        argument_spec=module_args,
-        supports_check_mode=True
-    )
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
+    # Fail if the pykeepass library is missing
     if not HAS_LIB:
         module.fail_json(msg=missing_required_lib("pykeepass"), exception=LIB_IMP_ERR)
 
-    # Return module result
+    # Return module result in check mode
     if module.check_mode:
         module.exit_json(**result)
 
+    # Open the database and write the secret
     try:
+        # Read database path
         db_path = module.params['db_path']
+
+        # Read database password
         db_password = module.params['db_password']
 
         # Create database if it does not exist
@@ -175,29 +176,50 @@ def run_module():
         # Connect to database
         db = PyKeePass(filename=db_path, password=db_password)
 
-        # secret_value is optional; module.params['secret_value'] is None when omitted
+        # Init secret value with an empty dictionary when it is omitted
         secret_value = module.params['secret_value'] or {}
 
         # Init force override
         force = True if (('force' in module.params) and (module.params['force'] is True)) else False
 
-        secret_dic, changed = secret_write(secret_path=module.params['secret_path'], db=db, db_path=db_path,
-                                           username=secret_value.get('username'), password=secret_value.get('password'),
-                                           url=secret_value.get('url'), custom_properties=secret_value.get('custom_properties'),
-                                           force=force)
+        # Write secret
+        secret_dic, changed = secret_write(
+            secret_path=module.params['secret_path'],
+            db=db,
+            db_path=db_path,
+            username=secret_value.get('username'),
+            password=secret_value.get('password'),
+            url=secret_value.get('url'),
+            custom_properties=secret_value.get('custom_properties'),
+            force=force,
+        )
     except Exception as e:
+        # Fail with the error message and its traceback
         module.fail_json(msg="Failed to write keepass secret: {0}".format(str(e)), exception=traceback.format_exc())
 
+    # Append secret to result
     result['secret'] = secret_dic
+
+    # Append changed state to result
     result['changed'] = changed is True
+
+    # Append secret path to result
     result['path'] = module.params['secret_path']
 
     # Exit with result
     module.exit_json(**result)
 
 
-def secret_write(secret_path: str, db: PyKeePass, db_path: str, username: str = None, password: str = None,
-                 url: str = None, custom_properties: dict = None, force: bool = False) -> (dict, bool):
+def secret_write(
+    secret_path: str,
+    db: "PyKeePass",
+    db_path: str,
+    username: str = None,
+    password: str = None,
+    url: str = None,
+    custom_properties: dict = None,
+    force: bool = False,
+) -> (dict, bool):
     """
     Write a secret to Keepass and return its data as a dict
     Args:
@@ -213,15 +235,17 @@ def secret_write(secret_path: str, db: PyKeePass, db_path: str, username: str = 
     Returns: dict
     """
 
-    # pykeepass builds the entry's UserName/Password XML nodes directly from these
-    # values and cannot handle None, so default unset ones to an empty string.
+    # Default an unset username to an empty string, as pykeepass cannot handle None
     username = username or ''
+
+    # Default an unset password to an empty string, as pykeepass cannot handle None
     password = password or ''
 
     # Check if secret path was not provided
     if secret_path is None or secret_path == '' or secret_path.isspace():
         raise ValueError("secret_path is required")
 
+    # Extract secret path
     path = secret_path.split("/")
 
     # Remove white spaces
@@ -233,43 +257,73 @@ def secret_write(secret_path: str, db: PyKeePass, db_path: str, username: str = 
         # Fetch entry
         entry = db.find_entries_by_path(path=path)
 
+        # Return, replace or create the secret
         if entry is not None and not force:
             # Return entry of it exists and not forced to be replaced
             return _convert_secret_to_dic(path, entry, False)
         elif entry is not None and force:
-            # Replace entry it is forced
+            # Delete the existing entry as it is forced to be replaced
             db.delete_entry(entry)
-            entry = db.add_entry(destination_group=db.root_group, title=path[len(path) - 1], username=username, password=password,
-                                 url=url, force_creation=True)
+
+            # Create the replacement entry
+            entry = db.add_entry(
+                destination_group=db.root_group,
+                title=path[len(path) - 1],
+                username=username,
+                password=password,
+                url=url,
+                force_creation=True,
+            )
+
+            # Set entry custom properties
             if custom_properties is not None and type(custom_properties) is dict:
                 for k in custom_properties:
                     entry.set_custom_property(key=str(k), value=str(custom_properties[k]))
+
+            # Save database
             db.save(db_path)
+
+            # Return replaced secret
             return _convert_secret_to_dic(path, entry, True)
         else:
             # Create new secret
-            entry = db.add_entry(destination_group=db.root_group, title=path[len(path) - 1], username=username, password=password,
-                                 url=url, force_creation=True)
+            entry = db.add_entry(
+                destination_group=db.root_group,
+                title=path[len(path) - 1],
+                username=username,
+                password=password,
+                url=url,
+                force_creation=True,
+            )
+
+            # Set entry custom properties
             if custom_properties and type(custom_properties) is dict:
                 for k in custom_properties:
                     entry.set_custom_property(key=str(k), value=str(custom_properties[k]))
+
+            # Save database
             db.save(db_path)
+
+            # Return created secret
             return _convert_secret_to_dic(path, entry, True)
     else:
+        # Return an empty result when the path has no segment
         return None, False
 
     # Init group path
     group_path = []
 
-    # Init parent group
-    parent_group = None
+    # Init parent group with the root group
+    parent_group = db.root_group
 
     # Init depth counter
     i = 0
 
     # Create parent and subsequent groups if they don't exist and then create the secret
     for item in path:
+        # Append item to the group path
         group_path.append(item)
+
         # Break on the last item as it is the secret name
         if item == path[len(path) - 1] and i == (len(path) - 1):
             break
@@ -279,51 +333,70 @@ def secret_write(secret_path: str, db: PyKeePass, db_path: str, username: str = 
 
         # Create group if it does not exist and move to next node
         if group is None:
-            if parent_group is None:
-                parent_group = db.root_group
             parent_group = db.add_group(destination_group=parent_group, group_name=item)
         else:
             parent_group = group
+
+        # Increment depth counter
         i = i + 1
 
     # Fetch entry
     entry = db.find_entries_by_path(path=path)
 
+    # Return, replace or create the secret
     if entry is not None and not force:
         # Return entry of it exists and not forced to be replaced
         return _convert_secret_to_dic(path, entry, False)
     elif entry is not None and force:
-        # Replace entry it is forced
+        # Delete the existing entry as it is forced to be replaced
         db.delete_entry(entry)
 
-        entry = db.add_entry(destination_group=parent_group, title=path[len(path) - 1], username=username, password=password,
-                             url=url)
+        # Create the replacement entry
+        entry = db.add_entry(
+            destination_group=parent_group, title=path[len(path) - 1], username=username, password=password, url=url
+        )
+
+        # Set entry custom properties
         if custom_properties and type(custom_properties) is dict:
             for k in custom_properties:
                 entry.set_custom_property(key=str(k), value=str(custom_properties[k]))
+
+        # Save database
         db.save(db_path)
     else:
         # Create new secret
-        entry = db.add_entry(destination_group=parent_group, title=path[len(path) - 1], username=username, password=password,
-                             url=url)
+        entry = db.add_entry(
+            destination_group=parent_group, title=path[len(path) - 1], username=username, password=password, url=url
+        )
+
+        # Set entry custom properties
         if custom_properties and type(custom_properties) is dict:
             for k in custom_properties:
                 entry.set_custom_property(key=str(k), value=str(custom_properties[k]))
+
+        # Save database
         db.save(db_path)
 
+    # Return written secret
     return _convert_secret_to_dic(path, entry, True)
 
 
 def _convert_secret_to_dic(path: [], entry: dict, changed: bool) -> (dict, bool):
+    # Init secret value
     secret = dict()
+
     # Append secret key
     secret[path[-1]] = dict()
 
-    # Append secret username, password and extra attributes
+    # Append secret username
     if entry.username:
         secret[path[-1]]["username"] = entry.username
+
+    # Append secret password
     if entry.password:
         secret[path[-1]]["password"] = entry.password
+
+    # Append secret custom properties
     if entry.custom_properties and type(entry.custom_properties) is dict:
         for k in entry.custom_properties:
             secret[path[-1]][k] = entry.custom_properties[k]
@@ -338,6 +411,7 @@ def main():
     Returns:
 
     """
+    # Run module
     run_module()
 
 
@@ -345,4 +419,5 @@ if __name__ == '__main__':
     """
     Module main
     """
+    # Execute module
     main()

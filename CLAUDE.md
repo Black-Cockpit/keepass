@@ -40,7 +40,7 @@ plugin, and no lookup plugin.
 
   ```yaml
   author:
-      - Hasni Mehdi (@hasnimehdi91)
+      - Mehdi Hasni (@hasnimehdi91)
       - mehdi@black-cockpit.com
   ```
 
@@ -81,17 +81,44 @@ plugin, and no lookup plugin.
 
 ### 1.3 Inline comments
 
-- Every logical step inside a function is preceded by a one-line `#`
-  comment: a short capitalised phrase that names the step, with no
-  trailing period.
+- A function body is a sequence of blocks. A block is one statement
+  or one compound statement: an assignment, a call, an `if`, a `for`,
+  a `try`, a `return`. A call or assignment that spans several lines
+  is one block.
+- Every block is separated from the previous block by one blank line
+  and is preceded by a one-line `#` comment: a short capitalised
+  phrase that names the block, with no trailing period. The first
+  block of a body or of a branch takes the comment without the blank
+  line.
+- The rule applies at every nesting level: when a branch of an `if`,
+  `else`, `for`, `try` or `except` holds several blocks, they are
+  separated and commented the same way. A branch that holds a single
+  block is covered by the comment of the statement that owns it.
 
   ```python
-  # Find secret
-  entry = db.find_entries_by_path(path=path)
+  # Delete the existing entry as it is forced to be replaced
+  db.delete_entry(entry)
 
-  # Check if secret does not exist
-  if entry is None:
-      return secret
+  # Create the replacement entry
+  entry = db.add_entry(
+      destination_group=db.root_group,
+      title=path[len(path) - 1],
+      username=username,
+      password=password,
+      url=url,
+      force_creation=True,
+  )
+
+  # Set entry custom properties
+  if custom_properties is not None and type(custom_properties) is dict:
+      for k in custom_properties:
+          entry.set_custom_property(key=str(k), value=str(custom_properties[k]))
+
+  # Save database
+  db.save(db_path)
+
+  # Return replaced secret
+  return _convert_secret_to_dic(path, entry, True)
   ```
 
 - Comments state what the step does. They never narrate history,
@@ -211,9 +238,10 @@ functions that take the open database as a parameter, never in
   there in its own commit.
 - Files that must not reach Galaxy are listed in `build_ignore` in
   `galaxy.yml`.
-- `requirements.txt` pins every package with an exact `==` version.
-  The `pykeepass` version in `requirements.txt` equals the version in
-  the README installation section.
+- `requirements.txt` lists direct dependencies only: a version range
+  for `ansible` and an exact `==` pin for `pykeepass`. The `pykeepass`
+  version in `requirements.txt` equals the version in the README
+  installation section.
 - `ansible.cfg` is a local development file. It points `library` at
   `./plugins/modules` so the modules run from a checkout without
   installing the collection.

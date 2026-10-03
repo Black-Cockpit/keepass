@@ -3,7 +3,7 @@ name: keepass
 version: 1.0.2
 readme: README.md
 authors:
-- Hasni Mehdi <mehdi@black-cockpit.com>
+- Mehdi Hasni <mehdi@black-cockpit.com>
 description: |
   Keepass collection to securely read and write data from and to keepass in an ansible playbook or role.
 license_file: 'LICENSE'
@@ -17,16 +17,66 @@ tags:
 - secure_variables
 dependencies: {}
 repository: https://github.com/Black-Cockpit/keepass
-documentation: https://github.com/Black-Cockpit/keepass/blob/master/doc
+documentation: https://github.com/Black-Cockpit/keepass/tree/master/docs
 homepage: https://github.com/Black-Cockpit/keepass
 issues: https://github.com/Black-Cockpit/keepass/issues
 build_ignore:
-- "local_**.*"
-- "*.ini"
-- "*.kdbx"
-- "*.txt"
-- ".vscode"
-- "*.venv"
-- ".git*"
-- "*.cfg"
+- .git
+- .github
+- .gitignore
+- .vscode
+- .claude
+- CLAUDE.md
+- .env
+- .venv
+- .vagrant
+- build.venv
+- ops.venv
+- dist
+- .pytest_cache
+- .tox
+- .cache
+- .coverage
+- .ropeproject
+- .ackrc
+- .python-version
+- .DS_Store
+- .idea
+- .project
+- .pydevproject
+- '*.tar.gz'
+- '*.pyc'
+- '*.pyo'
+- '*.retry'
+- '*.log'
+- '*.out'
+- '*.swp'
+- '*.swo'
+- '*.iml'
+- '*.sublime-project'
+- '*.sublime-workspace'
+- '*.kdbx'
+- '*.ini'
+- '*.local'
+- 'local_*'
+- __pycache__
+- test
+- tests
+- venv
+- env
+- ENV
+- env.bak
+- venv.bak
+- requirements.txt
+- ansible.cfg
+- Makefile
+- scripts
+- pyproject.toml
+- .ruff_cache
+- credentials.yml
+- results.xml
+- coverage.xml
+- htmlcov
+- changelogs/.plugin-cache.yaml
+- .ansible-test-timeout.json
 

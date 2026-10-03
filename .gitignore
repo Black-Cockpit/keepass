@@ -1,35 +1,81 @@
-# build products...
+# --------------------------------------------------------------------------------------------------
+# Local / Ephemeral
+# --------------------------------------------------------------------------------------------------
+
+# Ignore files and directories prefixed with local_
+**/local_**
+
+# Ignore files with the .local extension
+**/*.local
+
+# --------------------------------------------------------------------------------------------------
+# Secrets
+# --------------------------------------------------------------------------------------------------
+
+# Ignore KeePass databases wherever they appear
+**/*.kdbx
+
+# Ignore credential variable files
+credentials.yml
+
+# Ignore environment files that may carry credentials
+.env
+
+# --------------------------------------------------------------------------------------------------
+# Build products
+# --------------------------------------------------------------------------------------------------
+
+# Ignore Python bytecode
 *.py[co]
+
+# Ignore build output and archives
 build
+dist
 AUTHORS.TXT
 **/*.gz
-# Emacs backup and autosave files...
-*~
-.\#*
-\#*
-# RPM stuff...
+
+# Ignore RPM build products
 MANIFEST
-dist
 rpm-build
-# Eclipse/PyDev stuff...
-.project
-.pydevproject
-# PyCharm stuff...
-.idea
-#IntelliJ IDEA stuff..
-*.iml
-#VSCode stuff..
-.vscode/
-# Mac OS X stuff...
-.DS_Store
-# manpage build stuff...
+
+# Ignore the release directory
+packaging/release/ansible_release
+
+# --------------------------------------------------------------------------------------------------
+# Ansible
+# --------------------------------------------------------------------------------------------------
+
+# Ignore local inventories
+**/*.ini
+
+# Ignore retry files and command output produced by playbook runs
+*.retry
+*.out
+
+# Ignore ansible-test and changelog caches
+/SYMLINK_CACHE.json
+changelogs/.plugin-cache.yaml
+.ansible-test-timeout.json
+
+# Ignore Ansible package metadata (stable-2.9, 2.10 and 2.11 layouts)
+/lib/ansible.egg-info/
+/lib/ansible_base.egg-info/
+/lib/ansible_core.egg-info/
+
+# Ignore the vendored library directory, keeping its package marker
+lib/ansible/_vendor/*
+!lib/ansible/_vendor/__init__.py
+
+# --------------------------------------------------------------------------------------------------
+# Documentation build
+# --------------------------------------------------------------------------------------------------
+
+# Ignore generated man pages
 docs/man/man1/ansible*.1
 docs/man/man1/ansible*.1.asciidoc.in
 docs/man/man3/*
-# Sublime stuff
-*.sublime-project
-*.sublime-workspace
-# docsite stuff...
+
+# Ignore generated docsite content
 docs/docsite/_build
 docs/docsite/*.html
 docs/docsite/htmlout
@@ -54,76 +100,106 @@ docs/docsite/searchindex.js
 docs/docsite/_static/*.gif
 docs/docsite/_static/*.png
 docs/docsite/_static/websupport.js
-# Vim swap files
-*.swp
-*.swo
-[._]*.un~
-credentials.yml
-# test output
-*.retry
-*.out
+
+# --------------------------------------------------------------------------------------------------
+# Tests
+# --------------------------------------------------------------------------------------------------
+
+# Ignore test caches
 .pytest_cache/
+.pytest_cache
 .tox
 .cache
-.pytest_cache
+/.cache/
+/test/cache/*
+
+# Ignore test and coverage reports
 results.xml
 coverage.xml
+htmlcov/
+.coverage
 /test/units/cover-html
-/test/integration/inventory
-/test/integration/targets/*/backup/
-/test/cache/*
-# Development
+test/units/.coverage.*
+/test/results/
+
+# Ignore the development test directory
 /test/develop
-# Environments
-.env
+
+# Ignore integration test inventories, backups and cloud configurations
+/test/integration/inventory
+/test/integration/inventory.networking
+/test/integration/inventory.winrm
+/test/integration/targets/*/backup/
+/test/integration/cloud-config-*.*
+!/test/integration/cloud-config-*.*.template
+/test/integration/cloud-config-aws.yml
+/test/integration/cloud-config-azure.yml
+/test/integration/cloud-config-cs.ini
+
+# --------------------------------------------------------------------------------------------------
+# Python
+# --------------------------------------------------------------------------------------------------
+
+# Ignore Python virtual environments in any folder
+**/*venv
 .venv
-env/
 venv/
+venv
+env/
+env
 ENV/
 env.bak/
 venv.bak/
-venv
-env
+
+# Ignore the local Python version selector
+.python-version
+
+# Ignore rope project data
+.ropeproject
+
+# --------------------------------------------------------------------------------------------------
+# Vagrant
+# --------------------------------------------------------------------------------------------------
+
+# Ignore local Vagrant environments
 Vagrantfile
 .vagrant
-# Backwards compatibility with `stable-2.9` and earlier branches.
-# Also used in the `devel` branch during early Ansible 2.10 development.
-/lib/ansible.egg-info/
-# First used in the `devel` branch during Ansible 2.10 development.
-/lib/ansible_base.egg-info/
-# First used in the `devel` branch during Ansible 2.11 development.
-/lib/ansible_core.egg-info/
-# vendored lib dir
-lib/ansible/_vendor/*
-!lib/ansible/_vendor/__init__.py
-# test stuff
-/test/integration/cloud-config-*.*
-!/test/integration/cloud-config-*.*.template
-.python-version
-# Release directory
-packaging/release/ansible_release
-/.cache/
-/test/results/
-/test/integration/cloud-config-aws.yml
-/test/integration/inventory.networking
-/test/integration/inventory.winrm
-/test/integration/cloud-config-aws.yml
-/test/integration/cloud-config-cs.ini
-# python 'rope' stuff
-.ropeproject
-# local 'ack' config files
+
+# --------------------------------------------------------------------------------------------------
+# OS junk
+# --------------------------------------------------------------------------------------------------
+
+# Ignore macOS folder metadata
+.DS_Store
+
+# --------------------------------------------------------------------------------------------------
+# IDE
+# --------------------------------------------------------------------------------------------------
+
+# Ignore Visual Studio Code workspace settings
+.vscode/
+
+# Ignore JetBrains IDE project directories and module files
+.idea
+*.iml
+
+# Ignore Eclipse and PyDev project files
+.project
+.pydevproject
+
+# Ignore Sublime Text project files
+*.sublime-project
+*.sublime-workspace
+
+# Ignore Emacs backup and autosave files
+*~
+.\#*
+\#*
+
+# Ignore Vim swap and undo files
+*.swp
+*.swo
+[._]*.un~
+
+# Ignore local ack configuration files
 .ackrc
-# default 'coverage html' results
-htmlcov/
-# default 'coverage' tool data
-.coverage
-# ansible-test coverage results
-test/units/.coverage.*
-/test/integration/cloud-config-azure.yml
-/SYMLINK_CACHE.json
-changelogs/.plugin-cache.yaml
-.ansible-test-timeout.json
-**/*.kdbx
-**/*.venv
-**/*.ini
-**/local_**

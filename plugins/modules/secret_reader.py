@@ -2,7 +2,7 @@
 
 # Copyright (c) 2023 Black Cockpit LLC <mehdi@black-cockpit.com>
 # SPDX-License-Identifier: MIT
-from __future__ import (absolute_import, division, print_function)
+from __future__ import absolute_import, division, print_function
 
 import traceback
 from ansible.module_utils.basic import AnsibleModule, missing_required_lib
@@ -41,7 +41,7 @@ options:
         required: true
         type: str
 author:
-    - Hasni Mehdi (@hasnimehdi91)
+    - Mehdi Hasni (@hasnimehdi91)
     - mehdi@black-cockpit.com
 '''
 
@@ -83,6 +83,7 @@ def run_module():
     Keepass secret_reader module
     Returns:
     """
+    # Init secret dictionary
     secret_dic = dict()
 
     # Keepass secret_reader module arguments
@@ -93,42 +94,47 @@ def run_module():
     )
 
     # Keepass module result initialization
-    result = dict(
-        changed=True,
-        secret=secret_dic,
-        failed=False
-    )
+    result = dict(changed=False, secret=secret_dic, failed=False)
 
     # Keepass module initialization
-    module = AnsibleModule(
-        argument_spec=module_args,
-        supports_check_mode=True
-    )
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
+    # Fail if the pykeepass library is missing
     if not HAS_LIB:
         module.fail_json(msg=missing_required_lib("pykeepass"), exception=LIB_IMP_ERR)
 
-    # Return module result
+    # Return module result in check mode
     if module.check_mode:
         module.exit_json(**result)
 
+    # Open the database and read the secret
     try:
+        # Read database path
         db_path = module.params['db_path']
+
+        # Read database password
         db_password = module.params['db_password']
+
+        # Connect to database
         db = PyKeePass(filename=db_path, password=db_password)
 
+        # Read secret
         secret_dic = secret_to_dic(db, module.params['secret_path'])
     except Exception as e:
+        # Fail with the error message and its traceback
         module.fail_json(msg="Failed to read keepass secret: {0}".format(str(e)), exception=traceback.format_exc())
 
+    # Append secret to result
     result['secret'] = secret_dic
+
+    # Append secret path to result
     result['path'] = module.params['secret_path']
 
     # Exit with result
     module.exit_json(**result)
 
 
-def secret_to_dic(db: PyKeePass, secret_path: str) -> dict:
+def secret_to_dic(db: "PyKeePass", secret_path: str) -> dict:
     """
     Read secret from Keepass and convert it to a dic
     Args:
@@ -143,6 +149,8 @@ def secret_to_dic(db: PyKeePass, secret_path: str) -> dict:
     # Check if path is not provided
     if secret_path is None or secret_path == '' or secret_path.isspace():
         raise ValueError("secret_path is required")
+
+    # Extract secret path
     path = secret_path.split("/")
 
     # Remove white spaces
@@ -161,11 +169,15 @@ def secret_to_dic(db: PyKeePass, secret_path: str) -> dict:
     # Append secret key
     secret[path[-1]] = dict()
 
-    # Append secret username, password and extra attributes
+    # Append secret username
     if entry.username:
         secret[path[-1]]["username"] = entry.username
+
+    # Append secret password
     if entry.password:
         secret[path[-1]]["password"] = entry.password
+
+    # Append secret custom properties
     if entry.custom_properties and type(entry.custom_properties) is dict:
         for k in entry.custom_properties:
             secret[path[-1]][k] = entry.custom_properties[k]
@@ -180,6 +192,7 @@ def main():
     Returns:
 
     """
+    # Run module
     run_module()
 
 
@@ -187,4 +200,5 @@ if __name__ == '__main__':
     """
     Module main
     """
+    # Execute module
     main()
