@@ -1,0 +1,12 @@
+# Keep the GitHub Actions used by the workflows on their latest version.
+#
+# Dependabot opens a pull request when an action used under .github/workflows
+# has a new version. It watches nothing else: the Python packages are covered
+# by the version ranges of requirements.txt.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

@@ -49,11 +49,12 @@ flowchart LR
 | `make run_sanity_tests` | Builds the collection and runs `ansible-test sanity` on a temporary copy. | `dist/` |
 | `make run_tests` | Runs lint, unit, integration, and sanity, in that order. | As above |
 
-## Build
+## Build And Publish
 
 | Target | What it does | What it changes |
 | --- | --- | --- |
 | `make build_collection` | Packages the collection into `dist/hasnimehdi91-keepass-<version>.tar.gz`. | `dist/` |
+| `make publish_collection` | Builds the collection and publishes it to Ansible Galaxy with the token in `GALAXY_TOKEN`. Public and not reversible. | Ansible Galaxy |
 
 ## Wiki
 
@@ -68,3 +69,4 @@ flowchart LR
 - [Testing](development/testing.md)
 - [Release](development/release.md)
 - [Wiki](development/wiki.md)
+- [GitHub Actions](ci/github-actions.md), the workflows that run these targets.

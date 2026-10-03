@@ -109,6 +109,9 @@ One runnable playbook per module is in [Examples](docs/examples/README.md).
   [Testing](docs/development/testing.md), [Release](docs/development/release.md),
   [Wiki](docs/development/wiki.md), and the [Runbook](docs/runbook.md), every `make` target.
 
+- **Automation:** [GitHub Actions](docs/ci/github-actions.md), the workflows and their
+  secrets.
+
 ## Process And Policy
 
 - **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md), how to propose a change.

@@ -16,6 +16,7 @@ SHELL := /bin/bash
     format_source_code \
     lint_source_code \
     build_collection \
+    publish_collection \
     run_unit_tests \
     run_integration_tests \
     run_sanity_tests \
@@ -93,8 +94,25 @@ WIKI_BUILD_DIR := $(COLLECTION_BUILD_DIR)/wiki
 # Notes:
 #   - Derived from the origin remote: a GitHub wiki is the repository
 #     <name>.wiki.git beside <name>.git.
-#   - Override it on the command line to publish to another wiki.
+#   - Override it in the environment to publish to another wiki, or to
+#     publish with a token. It is never printed by a recipe.
 WIKI_REMOTE ?= $(patsubst %.git,%.wiki.git,$(shell git remote get-url origin 2>/dev/null))
+
+# Ansible Galaxy publication settings
+# Notes:
+#   - GALAXY_TOKEN is the API token from https://galaxy.ansible.com/ui/token.
+#     Pass it in the environment (export GALAXY_TOKEN=...) rather than on the
+#     make command line, so it stays out of the shell history.
+#   - Leave GALAXY_TOKEN empty to let ansible-galaxy fall back to the token
+#     stored in ~/.ansible/galaxy_token.
+#   - GALAXY_SERVER overrides the target server for a private Automation Hub;
+#     empty means the public galaxy.ansible.com.
+GALAXY_TOKEN ?=
+GALAXY_SERVER ?=
+
+# Hand the token to the recipe through the environment, so it is never part
+# of the ansible-galaxy command line make prints
+export GALAXY_TOKEN
 
 # --------------------------------------------------------------------------------------------------
 # Target: install_virtual_env
@@ -208,6 +226,42 @@ build_collection: check_virtual_env
 		ansible-galaxy collection build "${CONF_DIR_CONTEXT}" \
 			--output-path "${COLLECTION_BUILD_DIR}" \
 			--force
+
+# --------------------------------------------------------------------------------------------------
+# Target: publish_collection
+# --------------------------------------------------------------------------------------------------
+# Purpose
+#   Publishes the built artifact for the version declared in galaxy.yml to
+#   Ansible Galaxy (or to the Automation Hub named by GALAXY_SERVER).
+#
+# Behavior
+#   - Rebuilds the artifact first, so what is uploaded always matches the
+#     working tree and the galaxy.yml build_ignore list.
+#   - Authenticates with GALAXY_TOKEN when set, otherwise leaves
+#     ansible-galaxy to use ~/.ansible/galaxy_token.
+#   - Announces the collection, version and target server before uploading.
+#   - Waits for Galaxy to finish the import, so a rejected import fails the
+#     target instead of passing silently.
+#
+# Idempotency
+#   - NOT idempotent: Galaxy refuses a version that already exists. Bump
+#     `version` in galaxy.yml before publishing again.
+#
+# Dependencies
+#   - build_collection (and through it check_virtual_env)
+#   - A Galaxy API token with rights on the collection namespace
+# --------------------------------------------------------------------------------------------------
+# ⚠️ CAUTION: This target is public and irreversible. A published version
+# cannot be replaced or removed without Galaxy administrator intervention.
+# Do NOT execute it unless the release has been approved.
+# --------------------------------------------------------------------------------------------------
+publish_collection: build_collection
+	@echo "Publishing ${COLLECTION_NAMESPACE}.${COLLECTION_NAME} ${COLLECTION_VERSION} to ${if ${GALAXY_SERVER},${GALAXY_SERVER},galaxy.ansible.com}"
+	@source "${CONF_DIR_CONTEXT}/${VIRTUAL_ENV_DIR}/bin/activate" && \
+		ansible-galaxy collection publish "${COLLECTION_ARTIFACT}" \
+			$${GALAXY_TOKEN:+--token "$${GALAXY_TOKEN}"} \
+			${if ${GALAXY_SERVER},--server "${GALAXY_SERVER}",} \
+			--timeout 120
 
 # --------------------------------------------------------------------------------------------------
 # Target: run_unit_tests
@@ -385,5 +439,5 @@ publish_wiki: build_wiki
 		else \
 			git commit --quiet -m ":bulb: Updated wiki from the documentation" && \
 			git push --quiet && \
-			echo "Published the wiki to ${WIKI_REMOTE}"; \
+			echo "Published the wiki."; \
 		fi

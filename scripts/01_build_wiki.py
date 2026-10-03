@@ -36,7 +36,10 @@ ROOT_PAGES = ["README.md", "CONTRIBUTING.md", "SECURITY.md"]
 HOME_PAGE = "README.md"
 
 # Documentation directories, in the order they are listed in the sidebar
-SECTIONS = ["architecture", "modules", "examples", "development"]
+SECTIONS = ["architecture", "modules", "examples", "development", "ci"]
+
+# Sidebar titles of the documentation directories that are not titled after their name
+SECTION_TITLES = {"ci": "Automation"}
 
 # Title of the sidebar section listing the pages stored directly under docs/
 REFERENCE_SECTION = "Reference"
@@ -297,8 +300,11 @@ def build_sidebar(pages: dict, repository_url: str) -> str:
         # Order the pages of the section
         sources = order_section(section, pages)
 
+        # Read the directory name of the section
+        directory = os.path.basename(section)
+
         # Append the section title
-        lines.append("- **{0}**".format(os.path.basename(section).replace("-", " ").title()))
+        lines.append("- **{0}**".format(SECTION_TITLES.get(directory, directory.replace("-", " ").title())))
 
         # Append the pages of the section
         lines.extend("  - {0}".format(link(source)) for source in sources)

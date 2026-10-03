@@ -11,16 +11,17 @@
 ```mermaid
 flowchart LR
     tests["make run_tests"] --> bump["Bump version<br/>in galaxy.yml"]
-    bump --> build["make build_collection"]
-    build --> artifact["dist/<br/>hasnimehdi91-keepass-version.tar.gz"]
-    artifact --> publish["Publish to<br/>Ansible Galaxy"]
+    bump --> release["Publish a GitHub release<br/>tagged v-version"]
+    release --> workflows["Workflows<br/>test, build, publish"]
+    workflows --> galaxy["Ansible Galaxy"]
+    workflows --> wiki["GitHub wiki"]
 
     classDef step fill:#4477DD22,stroke:#4477DD
-    classDef file fill:#B7791F22,stroke:#B7791F
+    classDef auto fill:#B7791F22,stroke:#B7791F
     classDef out fill:#2E7D3222,stroke:#2E7D32
-    class tests,bump,build step
-    class artifact file
-    class publish out
+    class tests,bump,release step
+    class workflows auto
+    class galaxy,wiki out
 ```
 
 ## Steps
@@ -29,10 +30,18 @@ flowchart LR
 2. **Version:** set `version` in `galaxy.yml`. A new module or option raises the middle
    number, a fix raises the last one.
 3. **Commit:** commit the version bump alone, with the subject
-   `:100: Deploy release v<version>`.
-4. **Build:** run `make build_collection`. The artifact is written to `dist/`.
-5. **Publish:** upload the artifact with `ansible-galaxy collection publish`, using the Galaxy
-   API token of the namespace.
+   `:100: Deploy release v<version>`, and merge it to `master`.
+4. **Publish:** publish a GitHub release whose tag is `v<version>`. The workflows test, build,
+   and publish the collection to Galaxy, and publish the wiki. See
+   [GitHub Actions](../ci/github-actions.md).
+
+## Publish By Hand
+
+- **When:** only when the workflows cannot be used.
+- **Build:** `make build_collection` writes the artifact to `dist/`.
+- **Publish:** `export GALAXY_TOKEN=<token>`, then `make publish_collection`. The token is the
+  Galaxy API token of the namespace. Pass it in the environment, never on the command line.
+- **Wiki:** `make publish_wiki`, see [Wiki](wiki.md).
 
 ## What The Artifact Contains
 

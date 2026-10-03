@@ -285,7 +285,8 @@ functions that take the open database as a parameter, never in
 ### 4.3 Pages under `docs/`
 
 - Files are `kebab-case.md`, grouped by subject: `docs/architecture/`,
-  `docs/modules/`, `docs/development/`, and `docs/runbook.md`.
+  `docs/modules/`, `docs/development/`, `docs/ci/`, and
+  `docs/runbook.md`.
 - Every page has one `#` title and `##` sections in Title Case.
 - Every page opens with bullets in the form
   `- **Lead-in:** explanation.` that say what the subject is and what
@@ -350,7 +351,27 @@ functions that take the open database as a parameter, never in
 
 ---
 
-## 6. Git rules
+## 6. Workflow rules
+
+- Workflow files live in `.github/workflows/`, named in `snake_case`
+  after what they do, and open with a comment header that states the
+  purpose, the triggers and the requirements.
+- A workflow step never holds logic of its own. It runs a `make`
+  target, so the same command reproduces the step on a workstation.
+- Publishing workflows run on a published GitHub release and on a
+  manual run, and carry a `concurrency` group so two runs never
+  publish at the same time.
+- The collection is published only after the test workflow passes.
+- A secret reaches a `make` target through the environment, never on a
+  command line, and is never printed.
+- Every action is pinned to a major version. Dependabot keeps those
+  versions current.
+- A new workflow, trigger or secret updates
+  `docs/ci/github-actions.md` in the same commit.
+
+---
+
+## 7. Git rules
 
 - Default branch: `master`. Work happens on `snake_case` topic
   branches, merged via pull request.

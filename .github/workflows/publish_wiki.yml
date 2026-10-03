@@ -1,0 +1,57 @@
+# Build the wiki from the documentation and publish it to the GitHub wiki.
+#
+# Triggers
+#   release (published)  publish the documentation of the released version
+#   workflow_dispatch    publish on demand from the Actions tab
+#
+# Requirements
+#   The wiki enabled on the repository, with its first page created in the
+#   browser. The wiki has no git repository before that.
+#   No secret: the job pushes with the token of the workflow run.
+#
+# The job drives the same make target used locally, so the published pages
+# are identical to the ones make build_wiki writes on a workstation.
+name: Publish wiki
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+# Two runs never push to the wiki at the same time
+concurrency:
+  group: publish-wiki
+  cancel-in-progress: false
+
+# The token of the run pushes to the wiki of the repository
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and publish the wiki
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      # The Makefile builds its virtual environment with python3.12
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      # The wiki commit is authored by the GitHub Actions bot
+      - name: Set the git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # Replaces every page of the wiki by the built ones, and pushes nothing
+      # when the wiki already matches the documentation
+      - name: Publish the wiki
+        env:
+          WIKI_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git
+        run: make publish_wiki
